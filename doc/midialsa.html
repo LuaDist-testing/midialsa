@@ -535,8 +535,8 @@ or which could be passed to
 <dt><strong><a name="parse_address" class="item">
 <em>parse_address</em>( client_name )</a></strong></dt>
 <dd><p>
-Given a string, this function returns a two-integer array
-( client_number, port_number )
+Given a string, this function returns two integers,
+client_number and port_number,
 as might be needed by
 <CODE><A HREF="#connectto">connectto()</A></CODE>
 or
@@ -666,15 +666,15 @@ in the output of <CODE>aconnect&nbsp;-oil</CODE>
 <hr />
 <h3><a name="download">DOWNLOAD</a></h3>
 <P>This module is available as a LuaRock in
-<a href="http://luarocks.org/repositories/rocks/index.html#midi">
-luarocks.org/repositories/rocks</a>
+<A HREF="http://rocks.moonscript.org/modules/peterbillam">
+rocks.moonscript.org/modules/peterbillam</A>
 so you should be able to install it with the command:<BR>
 <CODE>
  &nbsp; $ su<BR>
  &nbsp; Password:<BR>
- &nbsp; # luarocks install midialsa</CODE><BR>
+ &nbsp; # luarocks install --server=http://rocks.moonscript.org midialsa</CODE><BR>
 or:<BR><CODE>
- &nbsp; # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.20-0.rockspec</CODE>
+ &nbsp; # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.21-0.rockspec</CODE>
 </P><p>
 If this results in an error message such as:<BR>
 <CODE>
@@ -686,7 +686,7 @@ then you need to find the appropriate directory with:<BR><CODE>
  &nbsp; find /usr/lib -name 'libasound.*' -print</CODE><BR>
 and then invoke:<BR><CODE>
  &nbsp; luarocks install \<BR>
- &nbsp; http://www.pjb.com.au/comp/lua/midialsa-1.20-0.rockspec \<BR>
+ &nbsp; http://www.pjb.com.au/comp/lua/midialsa-1.21-0.rockspec \<BR>
  &nbsp; ALSA_LIBDIR=/usr/lib/i386-linux-gnu/   # or wherever</CODE><BR>
 accordingly.
 </p>
@@ -694,6 +694,7 @@ accordingly.
 <hr />
 <h3><a name="changes">CHANGES</a></h3>
 <p>
+<BR>20140609 1.21 switch pod and doc over to using moonrocks
 <BR>20140416 1.20 outputports marked WRITE to get UNSUBSCRIBED
 messages from <I>System</I>
 <BR>20140404 1.19 (dis)connect(to,from) use the new
@@ -745,7 +746,7 @@ and there's not much can be done about that.
  <a href="http://pp.com.mx/python/alsaseq">http://pp.com.mx/python/alsaseq</a>
  <a href="http://search.cpan.org/perldoc?MIDI::ALSA">http://search.cpan.org/perldoc?MIDI::ALSA</A></I>
  <a href="http://www.pjb.com.au/comp/lua/midialsa.html">http://www.pjb.com.au/comp/lua/midialsa.html</a>
- <a href="http://luarocks.org/repositories/rocks/index.html#midialsa">http://luarocks.org/repositories/rocks/index.html#midialsa</a>
+ <A HREF="http://rocks.moonscript.org/modules/peterbillam/midialsa">http://rocks.moonscript.org/modules/peterbillam/midialsa</A>
  <a href="http://www.pjb.com.au/comp/lua/MIDI.html">http://www.pjb.com.au/comp/lua/MIDI.html</a>
  <a href="http://www.pjb.com.au/comp/lua/MIDI.html#events">http://www.pjb.com.au/comp/lua/MIDI.html#events</a>
  <a href="http://alsa-project.org/alsa-doc/alsa-lib/seq.html">http://alsa-project.org/alsa-doc/alsa-lib/seq.html</a>

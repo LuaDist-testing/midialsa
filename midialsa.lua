@@ -23,8 +23,8 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.19' -- a few doc fixes
-M.VersionDate = '04apr2014'
+M.Version     = '1.21' -- switch pod and doc over to using moonrocks
+M.VersionDate = '09jun2014'
 
 ------------------------------ private ------------------------------
 local function warn(str) io.stderr:write(str,'\n') end
@@ -897,8 +897,8 @@ or which could be passed to disconnectfrom().
 
 =item parse_address( client_name )
 
-Given a string, this function returns a two-integer array
-( client_number, port_number )
+Given a string, this function returns two integers,
+client_number and port_number,
 as might be needed by I<connectto>() or I<connectfrom>().
 For example, even if I<client>() has not been called,
 "24" will return 24,0 and "25:1" will return 25,1
@@ -976,22 +976,23 @@ in the output of C<aconnect -oil>
 =head1 DOWNLOAD
 
 This module is available as a LuaRock in
-http://luarocks.org/repositories/rocks/index.html#midi
+http://rocks.moonscript.org/modules/peterbillam
 so you should be able to install it with the command:
 
  $ su
  Password:
- # luarocks install midialsa
+ # luarocks install --server=http://rocks.moonscript.org midialsa
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.20-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.21-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 CHANGES
 
+ 20140609 1.21 switch pod and doc over to using moonrocks
  20140416 1.20 output-ports marked WRITE so they can receive UNSUBSCRIBED
  20140404 1.19 (dis)connect(to,from) use the new parse_address; some doc fixes
  20130514 1.18 parse_address matches startofstring to hide alsa-lib 1.0.24 bug
