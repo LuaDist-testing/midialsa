@@ -1,4 +1,4 @@
-<HTML><HEAD><TITLE>MIDI.lua</TITLE>
+<HTML><HEAD><TITLE>midialsa.lua</TITLE>
 <LINK rel=stylesheet type="text/css"
 href="../styles.css" title="PJB Computing Styles">
 <META HTTP-EQUIV="Keywords"
@@ -6,7 +6,7 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
 </HEAD>
 <BODY LINK="#000066" VLINK="#000066" ALINK="#000066">
 <DIV>
-<H1><IMG SRC="../logo.gif" ALT=" " WIDTH=81 HEIGHT=32>
+<H1><IMG SRC="../logo.jpg" ALT=" " WIDTH=126 HEIGHT=52>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 <FONT COLOR="#800000"><I>midialsa.lua</I></FONT>
 </H1>
@@ -34,7 +34,6 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
 	<li><a href="#author">AUTHOR</a></li>
 	<li><a href="#see_also">SEE ALSO</a></li>
 </ul>
-</ul>
 </TD></TR>
 </TABLE>
 
@@ -50,13 +49,22 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
 <h3><a name="synopsis">SYNOPSIS</a></h3>
 <pre>
  local ALSA = require 'midialsa'
- ALSA.client( 'Lua client', 1, 1, false )
- ALSA.connectto( 0, 20, 0 )
- ALSA.connectfrom( 1, 14, 0 )
+ <A HREF="#client">ALSA.client</A>( 'Lua client', 1, 1, false )
+ <A HREF="#connectfrom">ALSA.connectfrom</A>( 0, 14, 0 )    --  input port is lower (0)
+ <A HREF="#connectto">ALSA.connectto</A>( 1, 'TiMidity' ) -- output port is higher (1)
  while true do
-     local alsaevent = ALSA.input()
-     if alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then break end
-     ALSA.output( alsaevent )
+     local alsaevent = <A HREF="#input">ALSA.input</A>()
+     if alsaevent[1] == <A HREF="#constants">ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED</A> then break end
+     if alsaevent[1] == <A HREF="#constants">ALSA.SND_SEQ_EVENT_NOTEON</A> then
+         local channel  = alsaevent[8][1]
+         local pitch    = alsaevent[8][2]
+         local velocity = alsaevent[8][3]
+     elseif alsaevent[1] == <A HREF="#constants">ALSA.SND_SEQ_EVENT_CONTROLLER</A> then
+         local channel    = alsaevent[8][1]
+         local controller = alsaevent[8][5]
+         local value      = alsaevent[8][6]
+     end
+     <A HREF="#output">ALSA.output</A>( alsaevent )
  end</pre>
 <p>
 </p>
@@ -149,12 +157,12 @@ from any intput port and any of the clients connected to each of them.
 Events from each client can be distinguished by their source field.<BR>
 Unlike in the <em>alsaseq.py</em> Python module,
 it returns success or failure.<BR>
-Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+Unlike in the <I>alsaseq.py</I> Python module,
 if <I>src_client</I> is a string and <I>src_port</I> is undefined,
 then
 <I><A HREF="#parse_address">parse_address(src_client)</A></I>
 automatically gets invoked.
-This allows you to refer to the clients by name, for example
+This allows you to refer to the <I>src_client</I> by name, for example
 <I>connectfrom(inputport,'Virtual:1')</I> will connect from
 port 1 of the 'Virtual Raw MIDI' client.
 </p>
@@ -170,14 +178,14 @@ Events sent to an output port using the
 to all clients that are connected to it using this function.<BR>
 Unlike in the <em>alsaseq.py</em> Python module,
 it returns success or failure.<BR>
-Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+Unlike in the <I>alsaseq.py</I> Python module,
 if <I>dest_client</I> is a string and <I>dest_port</I> is undefined,
 then
 <I><A HREF="#parse_address">parse_address(dest_client)</A></I>
 automatically gets invoked.
-This allows you to refer to the clients by name, for example
-<I>connectto(outputport,'Virtual:1')</I> will connect to
-port 1 of the 'Virtual Raw MIDI' client.
+This allows you to refer to the <I>dest_client</I> by name, for example
+<I>connectto(outputport,'Roland XV-2020')</I> will connect to
+port 0 of the 'Roland XV-2020' client.
 </p>
 </dd>
 
@@ -187,12 +195,12 @@ port 1 of the 'Virtual Raw MIDI' client.
 <p>Disconnect the connection
 from the remote <I>src_client:src_port</I> to my <I>inputport</I>.
 <BR>Returns success or failure.<BR>
-Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+Unlike in the <I>alsaseq.py</I> Python module,
 if <I>src_client</I> is a string and <I>src_port</I> is undefined,
 then
 <I><A HREF="#parse_address">parse_address(src_client)</A></I>
 automatically gets invoked.
-This allows you to refer to the clients by name, for example
+This allows you to refer to the <I>src_client</I> by name, for example
 <I>disconnectfrom(inputport,'Virtual:1')</I> will disconnect from
 port 1 of the 'Virtual Raw MIDI' client.</p>
 </dd>
@@ -203,14 +211,14 @@ port 1 of the 'Virtual Raw MIDI' client.</p>
 <p>Disconnect the connection
 from my <I>outputport</I> to the remote <I>dest_client:dest_port</I>.
 <BR>Returns success or failure.<BR>
-Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+Unlike in the <I>alsaseq.py</I> Python module,
 if <I>dest_client</I> is a string and <I>dest_port</I> is undefined,
 then
 <I><A HREF="#parse_address">parse_address(dest_client)</A></I>
 automatically gets invoked.
-This allows you to refer to the clients by name, for example
-<I>disconnectto(outputport,'Virtual:1')</I> will disconnect to
-port 1 of the 'Virtual Raw MIDI' client.</p>
+This allows you to refer to the <I>dest_client</I> by name, for example
+<I>disconnectto(outputport,'Virtual:2')</I> will disconnect to
+port 2 of the 'Virtual Raw MIDI' client.</p>
 </dd>
 
 <dt><strong><a name="fd" class="item"><em>fd</em>()</a></strong></dt>
@@ -360,7 +368,7 @@ the <em>time</em> element is in floating-point seconds.</p>
 <dt><strong><a name="noteevent" class="item">
 <em>noteevent</em>( ch, key, vel, start, duration )</a></strong></dt>
 <dd>
-<p>Returns an ALSA-event-array, to be scheduled by
+<p>Returns an ALSA-event-array, ready to be scheduled by
 <a href="#output"><code>output()</code></a>.
 Unlike in the <em>alsaseq.py</em> Python module,
 the <em>start</em> and <em>duration</em> elements are in floating-point seconds.</p>
@@ -369,6 +377,8 @@ the <em>start</em> and <em>duration</em> elements are in floating-point seconds.
 <dt><strong><a name="noteonevent" class="item">
 <em>noteonevent</em>( ch, key, vel, start )</a></strong></dt>
 <dd><p>
+<p>Returns an ALSA-event-array, ready to be scheduled by
+<a href="#output"><code>output()</code></a>.
 If <I>start</I> is not used, the event will be sent directly.
 Unlike in the <I>alsaseq.py</I> Python module,
 if <I>start</I> is provided, the event will be scheduled in a queue. 
@@ -378,6 +388,8 @@ The <I>start</I> element, when provided, is in floating-point seconds.
 <dt><strong><a name="noteoffevent" class="item">
 <em>noteoffevent</em>( ch, key, vel, start )</a></strong></dt>
 <dd><p>
+<p>Returns an ALSA-event-array, ready to be scheduled by
+<a href="#output"><code>output()</code></a>.
 If <I>start</I> is not used, the event will be sent directly.
 Unlike in the <I>alsaseq.py</I> Python module,
 if <I>start</I> is provided, the event will be scheduled in a queue. 
@@ -630,7 +642,7 @@ so you should be able to install it with the command:<BR>
  &nbsp; Password:<BR>
  &nbsp; # luarocks install midialsa</CODE><BR>
 or:<BR><CODE>
- &nbsp; # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.18-0.rockspec</CODE>
+ &nbsp; # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.19-0.rockspec</CODE>
 </P><p>
 If this results in an error message such as:<BR>
 <CODE>
@@ -642,7 +654,7 @@ then you need to find the appropriate directory with:<BR><CODE>
  &nbsp; find /usr/lib -name 'libasound.*' -print</CODE><BR>
 and then invoke:<BR><CODE>
  &nbsp; luarocks install \<BR>
- &nbsp; http://www.pjb.com.au/comp/lua/midialsa-1.18-0.rockspec \<BR>
+ &nbsp; http://www.pjb.com.au/comp/lua/midialsa-1.19-0.rockspec \<BR>
  &nbsp; ALSA_LIBDIR=/usr/lib/i386-linux-gnu/   # or wherever</CODE><BR>
 accordingly.
 </p>
@@ -650,6 +662,8 @@ accordingly.
 <hr />
 <h3><a name="changes">CHANGES</a></h3>
 <p>
+<BR>20140404 1.19 (dis)connect(to,from) use the new parse_address;
+some doc fixes
 <BR>20130514 1.18 parse_address matches startofstring
  to hide an alsa-lib 1.0.24 bug
 <BR>20130211 1.18

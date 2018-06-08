@@ -285,14 +285,14 @@ for i=1,5 do  -- 1.17
 	print ("# discarding a SND_SEQ_EVENT_SENSING event from "..cl)
 end
 
-latency = math.floor(0.5 + 1000 * (alsaevent[5]-correct[5]))
+latency = math.floor(0.5 + 1000000 * (alsaevent[5]-correct[5]))
 -- alsaevent[4] = 1  -- sometimes it's 0
 alsaevent[5] = correct[5]
 if not ok(equals(alsaevent, correct), "received an event from myself") then
 	print("# alsaevent="..DataDumper(alsaevent));
 	print("# correct="..DataDumper(correct));
 end
-ok(latency < 10, "latency was "..latency.." ms")
+ok(latency < 10000, "latency was "..latency.." microsec")
 
 rc =  ALSA.disconnectfrom(1,id,2)
 ok(rc, "disconnectfrom(1,"..id..",2)")

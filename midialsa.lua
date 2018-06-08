@@ -23,8 +23,8 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.18' -- parse_address matches startofstring (alsa1.0.24 bug)
-M.VersionDate = '14may2013'
+M.Version     = '1.19' -- a few doc fixes
+M.VersionDate = '04apr2014'
 
 ------------------------------ private ------------------------------
 local function warn(str) io.stderr:write(str,'\n') end
@@ -89,28 +89,28 @@ function M.parse_address( port_name )  -- 1.11
 end
 function M.connectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
-		src_client,src_port = prv.parse_address(src_client)
+		src_client,src_port = M.parse_address(src_client) -- 1.19
 		if src_client == nil then return nil end  -- 1.15
 	end
 	return prv.connectfrom( inputport, src_client, src_port )
 end
 function M.connectto( outputport, dest_client, dest_port )
 	if type(dest_client) == 'string' and not dest_port then
-		dest_client,dest_port = prv.parse_address(dest_client)
+		dest_client,dest_port = M.parse_address(dest_client) -- 1.19
 		if dest_client == nil then return nil end  -- 1.15
 	end
 	return prv.connectto( outputport, dest_client, dest_port )
 end
 function M.disconnectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
-		src_client,src_port = prv.parse_address(src_client)
+		src_client,src_port = M.parse_address(src_client) -- 1.19
 		if src_client == nil then return nil end  -- 1.15
 	end
 	return prv.disconnectfrom( inputport, src_client, src_port )
 end
 function M.disconnectto( outputport, dest_client, dest_port )
 	if type(dest_client) == 'string' and not dest_port then
-		dest_client,dest_port = prv.parse_address(dest_client)
+		dest_client,dest_port = M.parse_address(dest_client) -- 1.19
 		if dest_client == nil then return nil end  -- 1.15
 	end
 	return prv.disconnectto( outputport, dest_client, dest_port )
@@ -513,14 +513,22 @@ midialsa.lua - the ALSA library, plus some interface functions
 
  local ALSA = require 'midialsa'
  ALSA.client( 'Lua client', 1, 1, false )
- ALSA.connectto( 0, 20, 0 )
- ALSA.connectfrom( 1, 14, 0 )
+ ALSA.connectfrom( 0, 20, 0 )    --  input port is lower (0)
+ ALSA.connectto( 1, 'TiMidity' )  -- output port is higher (1)
  while true do
      local alsaevent = ALSA.input()
      if alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then break end
+     if alsaevent[1] == ALSA.SND_SEQ_EVENT_NOTEON then 
+         local channel  = alsaevent[8][1]
+         local pitch    = alsaevent[8][2]
+         local velocity = alsaevent[8][3]
+     elseif alsaevent[1] == ALSA.SND_SEQ_EVENT_CONTROLLER then
+         local channel    = alsaevent[8][1]
+         local controller = alsaevent[8][5]
+         local value      = alsaevent[8][6]
+     end
      ALSA.output( alsaevent )
  end
-
 
 =head1 DESCRIPTION
 
@@ -587,10 +595,11 @@ Events from each client can be distinguised by their source field.
 
 Unlike in the I<alsaseq.py> Python module, it returns success or failure.
 
-Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+Unlike in the I<alsaseq.py> Python module,
 if I<src_client> is a string and I<src_port> is undefined,
 then I<parse_address(src_client)> automatically gets invoked.
-This allows you to refer to the clients by name, for example
+This allows you, if you have already invoked I<client(...)>,
+to refer to the I<src_client> by name, for example
 connectfrom(inputport,'Virtual:1') will connect from
 port 1 of the 'Virtual Raw MIDI' client.
 
@@ -603,12 +612,13 @@ it using this function.
 
 Unlike in the I<alsaseq.py> Python module, it returns success or failure.
 
-Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+Unlike in the I<alsaseq.py> Python module,
 if I<dest_client> is a string and I<dest_port> is undefined,
 then I<parse_address(dest_client)> automatically gets invoked.
-This allows you to refer to the clients by name, for example
-connectto(outputport,'Virtual:1') will connect to
-port 1 of the 'Virtual Raw MIDI' client.
+This allows you, if you have already invoked I<client(...)>,
+to refer to the I<dest_client> by name, for example
+connectto(outputport,'Roland XV-2020') will connect to
+port 0 of the 'Roland XV-2020' client.
 
 
 =item I<disconnectfrom>( inputport, src_client, src_port )
@@ -617,10 +627,10 @@ Disconnect the connection
 from the remote I<src_client:src_port> to my I<inputport>.
 Returns success or failure.
 
-Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+Unlike in the I<alsaseq.py> Python module,
 if I<src_client> is a string and I<src_port> is undefined,
 then I<parse_address(src_client)> automatically gets invoked.
-This allows you to refer to the clients by name, for example
+This allows you to refer to the remote I<src_client> by name, for example
 disconnectfrom(inputport,'Virtual:1') will disconnect from
 port 1 of the 'Virtual Raw MIDI' client.
 
@@ -630,12 +640,12 @@ Disconnect the connection
 from my I<outputport> to the remote I<dest_client:dest_port>.
 Returns success or failure.
 
-Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+Unlike in the I<alsaseq.py> Python module,
 if I<dest_client> is a string and I<dest_port> is undefined,
 then I<parse_address(dest_client)> automatically gets invoked.
-This allows you to refer to the clients by name, for example
-disconnectto(outputport,'Virtual:1') will disconnect to
-port 1 of the 'Virtual Raw MIDI' client.
+This allows you to refer to the I<dest_client> by name, for example
+disconnectto(outputport,'Virtual:2') will disconnect to
+port 2 of the 'Virtual Raw MIDI' client.
 
 =item I<fd>()
 
@@ -763,6 +773,7 @@ the I<start> and I<duration> elements are in floating-point seconds.
 
 =item I<noteonevent>( ch, key, vel, start )
 
+Returns an ALSA-event-array, to be scheduled by output().
 If I<start> is not used, the event will be sent directly.
 Unlike in the I<alsaseq.py> Python module.
 if I<start> is provided, the event will be scheduled in a queue. 
@@ -770,6 +781,7 @@ The I<start> element, when provided, is in floating-point seconds.
 
 =item I<noteoffevent>( ch, key, vel, start )
 
+Returns an ALSA-event-array, to be scheduled by output().
 If I<start> is not used, the event will be sent directly.
 Unlike in the I<alsaseq.py> Python module,
 if I<start> is provided, the event will be scheduled in a queue. 
@@ -942,13 +954,14 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.16-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.19-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 CHANGES
 
+ 20140404 1.19 (dis)connect(to,from) use the new parse_address; some doc fixes
  20130514 1.18 parse_address matches startofstring to hide alsa-lib 1.0.24 bug
  20130211      noteonevent and noteoffevent accept a start parameter
  20121208 1.17 test script handles alsa_1.0.16 quirk
