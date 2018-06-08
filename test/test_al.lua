@@ -198,27 +198,27 @@ ok(equals(from, correct), "listconnectedfrom() returns {{1,24,0}}")
 
 
 warn('# outputting a patch_change event...')
-correct = {11, 1, 0, 1, 0.5, {24,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
-rc =  ALSA.output(correct)
+alsaevent = {11, 1, 0, 1, 0.5, {id,1}, {25,0}, {0, 0, 0, 0, 0, 99} }
+rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(2))
 -- warn('# bytes = '..string.format('%d %d',string.byte(bytes),string.byte(bytes,2)))
 ok(equals(bytes, string.char(12*16, 99)), 'patch_change event detected')
 
 warn('# outputting a control_change event...')
-correct = {10, 1, 0, 1, 1.5, {24,0}, {id,1}, {2, 0, 0, 0,10,103} }
-rc =  ALSA.output(correct)
+alsaevent = {10, 1, 0, 1, 1.5, {id,1}, {25,0}, {2, 0, 0, 0,10,103} }
+rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(3))
 ok(equals(bytes, string.char(11*16+2,10,103)), 'control_change event detected')
 
 warn('# outputting a note_on event...')
-correct = { 6, 1, 0, 1, 2.0, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
-rc =  ALSA.output(correct)
+alsaevent = { 6, 1, 0, 1, 2.0, {id,1}, {25,0}, { 0, 60, 101, 0, 0 } }
+rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(3))
 ok(equals(bytes, string.char(9*16, 60,101)), 'note_on event detected')
 
 warn('# outputting a note_off event...')
-correct = { 7, 1, 0, 1, 2.5, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
-rc =  ALSA.output(correct)
+alsaevent = { 7, 1, 0, 1, 2.5, {id,1}, {25,0}, { 0, 60, 101, 0, 0 } }
+rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(3))
 ok(equals(bytes, string.char(8*16, 60,101)), 'note_off event detected')
 

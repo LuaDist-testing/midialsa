@@ -122,7 +122,7 @@ if the quantity requested is between 1 and 64 for each.
 If createqueue = true, it creates a queue for stamping the arrival time of
 incoming events and scheduling future start times of outgoing events.<BR>
 For full ALSA functionality, the <I>name</I>
-should contain only letters, digits, underscores or spaces,
+should contain only letters, digits, underscores, equal-signs or spaces,
 and should contain at least one letter.<BR>
 Unlike in the <em>alsaseq.py</em> Python module,
 it returns success or failure.</p>
@@ -260,20 +260,37 @@ and the next event will be of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED</p>
 The format of the event is dicussed in
 <a href="#input"><code>input()</code></a> above.
 The event will be output immediately
-either if no queue was created in the client,
-or if the <em>queue</em> parameter is set to ALSA.SND_SEQ_QUEUE_DIRECT
-and otherwise it will be queued and scheduled.</p>
-<p>If only one port exists, all events are sent to that port. If two or
-more output ports exist, the <em>dest_port</em> of the event determines
-which to use.  The smallest available port-number ( as created by
-<a href="#client"><code>client()</code></a> )
-will be used if <em>dest_port</em> is less than it,
-and the largest available port-number
-will be used if <em>dest_port</em> is greater than it.</p>
-<p>An event sent to an output port will be sent to all clients
-that were subscribed using the
-<a href="#connectto"><code>connectto()</code></a> function.</p>
-<p>If the queue buffer is full, <a href="#output"><code>output()</code></a>
+either if no queue was created in the client
+or if the <em>queue</em> parameter is set to ALSA.SND_SEQ_QUEUE_DIRECT,
+and otherwise it will be queued and scheduled.
+</p><p>
+The <I>source</I> is an array with two elements:
+&nbsp; <I>{src_client,&nbsp;src_port}</I>, &nbsp;
+specifying the local output-port from which the event will be sent.
+If only one output-port exists, all events are sent from it.
+If two or more exist, the <I>src_port</I> determines which to use.
+The smallest available port-number (as created by
+<a href="#client"><code>client()</code></a>)
+will be used if <I>src_port</I> is less than it,
+and the largest available will be used if <I>src_port</I> is greater than it.
+</p><p>
+The <I>destination</I> is an array with two elements:
+&nbsp; <I>{dest_client,&nbsp;dest_port}</I>, &nbsp;
+specifying the remote client/port to which the event will be sent.
+If <I>dest_client</I> is zero, then the event will be sent to all clients
+that are subscribed to the source_port (e.g. using
+<a href="#connectto"><code>connectto()</code></a>).
+Since version 1.12, if <I>dest_client</I> is non-zero,
+then the event will be sent to that
+<I>dest_client:dest_port</I> and nowhere else.
+</p><p>
+It is possible to send an event to a destination to which there
+is no connection, but it's not usually
+the right thing to do. Normally, you should set up a connection,
+to allow the underlying RawMIDI ports to remain open while
+playing - otherwise, ALSA will reset the port after every event.
+</p><p>
+If the queue buffer is full, <a href="#output"><code>output()</code></a>
 will wait until space is available to output the event.
 Use <a href="#status"><code>status()</code></a>
 to know how many events are scheduled in the queue.</p>
@@ -574,7 +591,7 @@ so you should be able to install it with the command:</p>
  # luarocks install midialsa</pre>
 <p>or:</p>
 <pre>
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.09-0.rockspec</a></pre>
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.12-0.rockspec</a></pre>
 <p>
 </p>
 <hr />

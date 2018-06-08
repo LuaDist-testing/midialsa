@@ -23,8 +23,9 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.11'
-M.VersionDate = '01nov2011'
+M.Version     = '1.12'
+M.VersionDate = '08nov2011'
+-- 20111108 1.12 output() does not broadcast if destination is set
 -- 20111101 1.11 add parse_address() & call automatically from connectto() etc
 -- 20110624 1.09 maximum_nports increased from 4 to 64
 -- 20110428 1.06 fix bug in status() in the time return-value
@@ -647,23 +648,34 @@ and the next event will be of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
 
 =item I<output>( {type, flags, tag, queue, time, source, destination, data} )
 
-Send an ALSA-event-array to an output port.
-The format of the event is dicussed in input() above.
+Send an ALSA-event-array from an output port.
+The format of the event is discussed in input() above.
 The event will be output immediately
-either if no queue was created in the client,
-or if the I<queue> parameter is set to ALSA.SND_SEQ_QUEUE_DIRECT
+either if no queue was created in the client
+or if the I<queue> parameter is set to SND_SEQ_QUEUE_DIRECT,
 and otherwise it will be queued and scheduled.
 
-If only one port exists, all events are sent to that port. If two or
-more output ports exist, the I<dest_port> of the event determines
-which to use.
-The smallest available port-number ( as created by client() )
-will be used if I<dest_port> is less than it,
-and the largest available port-number
-will be used if I<dest_port> is greater than it.
+The I<source> is an array with two elements: {src_client, src_port},
+specifying the local output-port from which the event will be sent.
+If only one output-port exists, all events are sent from it.
+If two or more exist, the I<src_port> determines which to use.
+The smallest available port-number (as created by I<client>())
+will be used if I<src_port> is less than it,
+and the largest available will be used if I<src_port> is greater than it.
 
-An event sent to an output port will be sent to all clients
-that were subscribed using the connectto() function.
+The I<destination> is an array with two elements: {dest_client, dest_port},
+specifying the remote client/port to which the event will be sent.
+If I<dest_client> is zero, then the event will be sent to all clients
+that are subscribed to the source_port (e.g. using I<connectto>()).
+Since version 1.12, if I<dest_client> is non-zero,
+then the event will be sent to that
+I<dest_client:dest_port> and nowhere else.
+
+It is possible to send an event to a destination to which there
+is no connection, but it's not usually
+the right thing to do. Normally, you should set up a connection,
+to allow the underlying RawMIDI ports to remain open while
+playing - otherwise, ALSA will reset the port after every event.
 
 If the queue buffer is full, output() will wait
 until space is available to output the event.
