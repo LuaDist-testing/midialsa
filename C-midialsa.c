@@ -38,6 +38,18 @@ static int c_client(lua_State *L) {
 	else
 		queue_id = SND_SEQ_QUEUE_DIRECT;
 
+	/*  Clemens Ladisch says (comp.music.midi, 2014041):
+	> If you want to allow other clients to send events to the port,
+	> set the WRITE flag.
+	> If you want to allow other clients to create a subscription to
+	> the port, set the WRITE and SUBS_WRITE flags.
+	> If you want to allow other clients to create a subscription from
+	> the port, set the READ and SUBS_READ flags.
+	> (Setting only the READ flag does not make sense because these flags
+	> specify what *other* clients are allowed to do.)
+	> The DUPLEX flag is purely informational, but you should set it if
+	> the port supports both directions.
+	*/
 	for ( n=0; n < ninputports; n++ ) {
 		if (( portid = snd_seq_create_simple_port(seq_handle, "Input port",
 				SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,
@@ -59,9 +71,10 @@ static int c_client(lua_State *L) {
 	}
 
 	for ( n=0; n < noutputports; n++ ) {
+		/* 1.20 mark WRITE to allow UNSUBSCRIBE message from System */
 		if (( portid = snd_seq_create_simple_port(seq_handle, "Output port",
-				SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,
-				SND_SEQ_PORT_TYPE_APPLICATION)) < 0) {
+				SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ
+				|SND_SEQ_PORT_CAP_WRITE, SND_SEQ_PORT_TYPE_APPLICATION)) < 0) {
 			fprintf(stderr, "Error creating output port %d.\n", n );
 			lua_pushboolean(L, 0);
 			return 1;

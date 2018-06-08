@@ -136,10 +136,10 @@ In the worst case you have to detect versions:<PRE>
 <em>client</em>( name, ninputports, noutputports, createqueue )</a></strong></dt>
 <dd>
 <p>Create an ALSA sequencer client with zero or more input or output ports,
-and optionally a timing queue.  ninputports and noutputports are created
-if the quantity requested is between 1 and 64 for each.
-If createqueue = true, it creates a queue for stamping the arrival time of
-incoming events and scheduling future start times of outgoing events.<BR>
+and optionally a timing queue.  <I>ninputports</I> and <I>noutputports</I>
+are created if the quantity requested is between 1 and 64 for each.
+If <I>createqueue = true</I>, it creates a queue for stamping the arrival time
+of incoming events and scheduling future start times of outgoing events.<BR>
 For full ALSA functionality, the <I>name</I>
 should contain only letters, digits, underscores, equal-signs or spaces,
 and should contain at least one letter.<BR>
@@ -249,12 +249,18 @@ for handling events differently according to their source or destination.
 <A HREF="#constants">The event-type constants, beginning with SND_SEQ_,
 are available as module variables</A>.
 </p><p>
-Note that if the event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
+Note that if the event is of type SND_SEQ_EVENT_PORT_SUBSCRIBED
+or SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
 then that message has come from the System,
-so its <I>src_client</I> and <I>src_port</I> do not tell you who disconnected.
-You'll need to use
-<A HREF="#listconnected">listconnected()</A> to see what's happened.</p>
-<p>The data array is mostly as documented in
+and its <I>dest_port</I> tells you which of your ports is involved.
+But its <I>src_client</I> and <I>src_port</I> do not tell you
+which other client connected or disconnected; you'll need to use
+<A HREF="#listconnectedfrom">listconnectedfrom()</A>
+or
+<A HREF="#listconnectedto">listconnectedto()</A>
+to see what's happened.
+</p><p>
+The data array is mostly as documented in
 <a href="http://alsa-project.org/alsa-doc/alsa-lib/seq.html">
 http://alsa-project.org/alsa-doc/alsa-lib/seq.html</a><BR>
 For NOTE events,  the elements are
@@ -629,6 +635,32 @@ SND_SEQ_EVENT_BOUNCE
 &nbsp; &nbsp; SND_SEQ_TIME_STAMP_REAL
 &nbsp; &nbsp; Version
 &nbsp; &nbsp; VersionDate
+</P><P>
+The MIDI standard specifies that a NOTEON event with velocity=0
+means the same as a NOTEOFF event; so you may find a little function
+like this convenient:<PRE>
+ local function is_noteoff(alsaevent)
+    if alsaevent[1] == ALSA.SND_SEQ_EVENT_NOTEOFF then return true end
+    if alsaevent[1] == ALSA.SND_SEQ_EVENT_NOTEON and alsaevent[8][3] == 0 then
+       return true
+    end
+    return false
+ end
+</PRE>
+Since Version 1.20, the output-ports are marked as WRITE,
+so they can receive
+SND_SEQ_EVENT_PORT_SUBSCRIBED or SND_SEQ_EVENT_PORT_UNSUBSCRIBED
+events from <I>System&nbsp;Announce</I>.<BR>
+Up until Version 1.19, and in the original Python module,
+output-ports created by
+<A HREF="#client">client()</A> were not so marked;
+in those days, if knowing about connections and disconnections to the
+output-port was important, you had to listen to all notifications from
+<I>System&nbsp;Announce</I>:
+<CODE>ALSA.connectfrom(0,'System:1')</CODE>
+This alerted you unnecessarily to events which didn't involve your client,
+and the connection showed up confusingly
+in the output of <CODE>aconnect&nbsp;-oil</CODE>
 </P>
 
 <hr />
@@ -642,7 +674,7 @@ so you should be able to install it with the command:<BR>
  &nbsp; Password:<BR>
  &nbsp; # luarocks install midialsa</CODE><BR>
 or:<BR><CODE>
- &nbsp; # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.19-0.rockspec</CODE>
+ &nbsp; # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.20-0.rockspec</CODE>
 </P><p>
 If this results in an error message such as:<BR>
 <CODE>
@@ -654,7 +686,7 @@ then you need to find the appropriate directory with:<BR><CODE>
  &nbsp; find /usr/lib -name 'libasound.*' -print</CODE><BR>
 and then invoke:<BR><CODE>
  &nbsp; luarocks install \<BR>
- &nbsp; http://www.pjb.com.au/comp/lua/midialsa-1.19-0.rockspec \<BR>
+ &nbsp; http://www.pjb.com.au/comp/lua/midialsa-1.20-0.rockspec \<BR>
  &nbsp; ALSA_LIBDIR=/usr/lib/i386-linux-gnu/   # or wherever</CODE><BR>
 accordingly.
 </p>
@@ -662,10 +694,14 @@ accordingly.
 <hr />
 <h3><a name="changes">CHANGES</a></h3>
 <p>
-<BR>20140404 1.19 (dis)connect(to,from) use the new parse_address;
+<BR>20140416 1.20 outputports marked WRITE to get UNSUBSCRIBED
+messages from <I>System</I>
+<BR>20140404 1.19 (dis)connect(to,from) use the new
+<A HREF="#parse_address">parse_address</A>;
 some doc fixes
-<BR>20130514 1.18 parse_address matches startofstring
- to hide an alsa-lib 1.0.24 bug
+<BR>20130514 1.18
+<A HREF="#parse_address">parse_address</A>
+matches startofstring to hide an alsa-lib 1.0.24 bug
 <BR>20130211 1.18
 <A HREF="#noteonevent">noteonevent</A> and
 <A HREF="#noteoffevent">noteoffevent</A> accept a start parameter

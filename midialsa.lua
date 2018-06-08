@@ -86,6 +86,7 @@ function M.parse_address( port_name )  -- 1.11
 			return num, tonumber(por)
 		end
 	end
+	return nil
 end
 function M.connectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
@@ -678,9 +679,13 @@ are available as module variables:
  ALSA = require 'midialsa'
  for k,v in pairs(ALSA) do print(k) end
 
-Note that if the event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
-then the remote client and port do not get set;
-you need to use listconnected() to see what's happened.
+Note that if the event is of type SND_SEQ_EVENT_PORT_SUBSCRIBED
+or SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
+then that message has come from the System,
+and its I<dest_port> tells you which of your ports is involved.
+But its I<src_client> and I<src_port> do not tell you which other client
+disconnected;  you'll need to use I<listconnectedfrom()>
+or I<listconnectedto()> to see what's happened.
 
 The data array is mostly as documented in
 http://alsa-project.org/alsa-doc/alsa-lib/seq.html.
@@ -941,6 +946,32 @@ SND_SEQ_EVENT_USR_VAR0  SND_SEQ_EVENT_USR_VAR1    SND_SEQ_EVENT_USR_VAR2
 SND_SEQ_EVENT_USR_VAR3  SND_SEQ_EVENT_USR_VAR4    SND_SEQ_QUEUE_DIRECT
 SND_SEQ_TIME_STAMP_REAL
 
+The MIDI standard specifies that a NOTEON event with velocity=0 means
+the same as a NOTEOFF event; so you may find a little function like
+this convenient:
+
+ local function is_noteoff(alsaevent)
+    if alsaevent[1] == ALSA.SND_SEQ_EVENT_NOTEOFF then return true end
+    if alsaevent[1] == ALSA.SND_SEQ_EVENT_NOTEON
+      and alsaevent[8][3] == 0 then
+        return true
+    end
+    return false
+ end
+
+Since Version 1.20, the output-ports are marked as WRITE,
+so they can receive
+SND_SEQ_EVENT_PORT_SUBSCRIBED or SND_SEQ_EVENT_PORT_UNSUBSCRIBED
+events from I<System Announce>.
+Up until Version 1.19, and in the original Python module,
+output-ports created by client() were not so marked;
+in those days, if knowing about connections and disconnections to the
+output-port was important, you had to listen to all notifications from
+I<System Announce>:
+C<ALSA.connectfrom(0,'System:1')>
+This alerted you unnecessarily to events which didn't involve your client,
+and the connection showed up confusingly
+in the output of C<aconnect -oil>
 
 =head1 DOWNLOAD
 
@@ -954,13 +985,14 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.19-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.20-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 CHANGES
 
+ 20140416 1.20 output-ports marked WRITE so they can receive UNSUBSCRIBED
  20140404 1.19 (dis)connect(to,from) use the new parse_address; some doc fixes
  20130514 1.18 parse_address matches startofstring to hide alsa-lib 1.0.24 bug
  20130211      noteonevent and noteoffevent accept a start parameter
