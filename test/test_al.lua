@@ -190,7 +190,7 @@ alsaevent[8][5] = 0
 ok(equals(alsaevent, correct),
  'input() returns {7,1,0,1,301,{vm,0},{id,1},{0,60,101,0,0}}')
 scoreevent = ALSA.alsa2scoreevent(alsaevent)
-print("scoreevent="..DataDumper(scoreevent))
+-- print("scoreevent="..DataDumper(scoreevent))
 scoreevent[2] = 300000
 correct = {'note',300000,1000,0,60,101}
 if not ok(equals(scoreevent, correct),
