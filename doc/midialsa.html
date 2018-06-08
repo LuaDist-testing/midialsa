@@ -367,22 +367,28 @@ the <em>start</em> and <em>duration</em> elements are in floating-point seconds.
 </dd>
 
 <dt><strong><a name="noteonevent" class="item">
-<em>noteonevent</em>( ch, key, vel )</a></strong></dt>
-<dd>
-<p>Returns an ALSA-event-array to be sent directly with
-<a href="#output"><code>output()</code></a>.</p>
-</dd>
+<em>noteonevent</em>( ch, key, vel, start )</a></strong></dt>
+<dd><p>
+If <I>start</I> is not used, the event will be sent directly.
+Unlike in the <I>alsaseq.py</I> Python module,
+if <I>start</I> is provided, the event will be scheduled in a queue. 
+The <I>start</I> element, when provided, is in floating-point seconds.
+</p></dd>
 
 <dt><strong><a name="noteoffevent" class="item">
-<em>noteoffevent</em>( ch, key, vel )</a></strong></dt>
-<dd>
-<p>Returns an ALSA-event-array to be sent directly with <a href="#output"><code>output()</code></a>.</p>
+<em>noteoffevent</em>( ch, key, vel, start )</a></strong></dt>
+<dd><p>
+If <I>start</I> is not used, the event will be sent directly.
+Unlike in the <I>alsaseq.py</I> Python module,
+if <I>start</I> is provided, the event will be scheduled in a queue. 
+The <I>start</I> element, when provided, is in floating-point seconds.
 </dd>
 
 <dt><strong><a name="pgmchangeevent" class="item">
 <em>pgmchangeevent</em>( ch, value, start )</a></strong></dt>
 <dd>
-<p>Returns an ALSA-event-array to be sent by <a href="#output"><code>output()</code></a>.
+<p>Returns an ALSA-event-array for a <I>patch_change</I>
+to be sent by <a href="#output"><code>output()</code></a>.
 If <em>start</em> is not used, the event will be sent directly;
 if <em>start</em> is provided, the event will be scheduled in a queue. 
 Unlike in the <em>alsaseq.py</em> Python module,
@@ -615,22 +621,40 @@ SND_SEQ_EVENT_BOUNCE
 
 <hr />
 <h3><a name="download">DOWNLOAD</a></h3>
-<p>This module is available as a LuaRock in
-<a href="http://luarocks.org/repositories/rocks/index.html#midi">http://luarocks.org/repositories/rocks/index.html</a>
-so you should be able to install it with the command:</p>
-<pre>
- $ su
- Password:
- # luarocks install midialsa</pre>
-<p>or:</p>
-<pre>
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.17-0.rockspec</a></pre>
-<p>
+<P>This module is available as a LuaRock in
+<a href="http://luarocks.org/repositories/rocks/index.html#midi">
+luarocks.org/repositories/rocks</a>
+so you should be able to install it with the command:<BR>
+<CODE>
+ &nbsp; $ su<BR>
+ &nbsp; Password:<BR>
+ &nbsp; # luarocks install midialsa</CODE><BR>
+or:<BR><CODE>
+ &nbsp; # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.18-0.rockspec</CODE>
+</P><p>
+If this results in an error message such as:<BR>
+<CODE>
+ &nbsp; Error: Could not find expected file libasound.a, or libasound.so,<BR>
+ &nbsp; or libasound.so.* for ALSA -- you may have to install ALSA in your<BR>
+ &nbsp; system and/or pass ALSA_DIR or ALSA_LIBDIR to the luarocks command.<BR>
+ &nbsp; Example: luarocks install midialsa ALSA_DIR=/usr/local</CODE><BR>
+then you need to find the appropriate directory with:<BR><CODE>
+ &nbsp; find /usr/lib -name 'libasound.*' -print</CODE><BR>
+and then invoke:<BR><CODE>
+ &nbsp; luarocks install \<BR>
+ &nbsp; http://www.pjb.com.au/comp/lua/midialsa-1.18-0.rockspec \<BR>
+ &nbsp; ALSA_LIBDIR=/usr/lib/i386-linux-gnu/   # or wherever</CODE><BR>
+accordingly.
 </p>
 
 <hr />
 <h3><a name="changes">CHANGES</a></h3>
 <p>
+<BR>20130514 1.18 parse_address matches startofstring
+ to hide an alsa-lib 1.0.24 bug
+<BR>20130211 1.18
+<A HREF="#noteonevent">noteonevent</A> and
+<A HREF="#noteoffevent">noteoffevent</A> accept a start parameter
 <BR>20121208 1.17 test script handles alsa_1.0.16 quirk
 <BR>20121206 1.16 queue_id; test prints better diagnostics; 5.2-compatible
 <BR>20120930 1.15 output() timestamp and duration in floating-point seconds

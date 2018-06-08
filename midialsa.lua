@@ -23,8 +23,8 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.16'
-M.VersionDate = '10oct2012'
+M.Version     = '1.18' -- parse_address matches startofstring (alsa1.0.24 bug)
+M.VersionDate = '14may2013'
 
 ------------------------------ private ------------------------------
 local function warn(str) io.stderr:write(str,'\n') end
@@ -72,7 +72,20 @@ function M.client(name, ninputports, noutputports, createqueue)
 end
 function M.parse_address( port_name )  -- 1.11
 	-- http://alsa-project.org/alsa-doc/alsa-lib/group___seq_middle.html
-	return prv.parse_address( port_name )
+	-- 1.18 bodge to hide bug introduced in alsa-lib 1.0.24 fixed 3 years later
+	local cli,por = prv.parse_address( port_name )  -- 1.18
+	if cli then return cli,por end
+	cli,por = string.match(port_name, "(.+):(%d)")
+	if not cli then cli = port_name end
+	if not por then por = 0 end
+	local cli_length = #cli
+	if cli_length == 0 then return None,None end
+	local all = M.listclients()
+	for num,name in pairs(all) do
+		if cli == string.sub(name,1,cli_length) then
+			return num, tonumber(por)
+		end
+	end
 end
 function M.connectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
@@ -186,16 +199,30 @@ function M.noteevent( ch, key, vel, start, duration )
 		-- { ch, key, vel, vel, math.floor(0.5 + 1000*duration) } } pre-1.15
 end
 
-function M.noteonevent( ch, key, vel )
-    return { M.SND_SEQ_EVENT_NOTEON, M.SND_SEQ_TIME_STAMP_REAL,
-        0, M.SND_SEQ_QUEUE_DIRECT, 0,
-        { 0,0 }, { 0,0 }, { ch, key, vel, 0, 0 } }
+function M.noteonevent( ch, key, vel, start )
+    -- 1.18 If start is not provided, the event will be sent directly.
+    if start == nil then
+    	return { M.SND_SEQ_EVENT_NOTEON, M.SND_SEQ_TIME_STAMP_REAL,
+        	0, M.SND_SEQ_QUEUE_DIRECT, 0,
+        	{ 0,0 }, { 0,0 }, { ch, key, vel, 0, 0 } } -- 1.18
+    else
+		local qid = prv.queue_id()
+        return { M.SND_SEQ_EVENT_NOTEON, M.SND_SEQ_TIME_STAMP_REAL,
+          0, qid, start, { 0,0 }, { 0,0 }, { ch, key, vel, 0, 0 } } -- 1.18
+	end
 end
 
-function M.noteoffevent( ch, key, vel )
-    return { M.SND_SEQ_EVENT_NOTEOFF, M.SND_SEQ_TIME_STAMP_REAL,
-        0, M.SND_SEQ_QUEUE_DIRECT, 0,
-        { 0,0 }, { 0,0 }, { ch, key, vel, vel, 0 } }
+function M.noteoffevent( ch, key, vel, start )
+    -- 1.18 If start is not provided, the event will be sent directly.
+    if start == nil then
+    	return { M.SND_SEQ_EVENT_NOTEOFF, M.SND_SEQ_TIME_STAMP_REAL,
+        	0, M.SND_SEQ_QUEUE_DIRECT, 0,
+        	{ 0,0 }, { 0,0 }, { ch, key, vel, vel, 0 } } -- 1.18
+    else
+		local qid = prv.queue_id()   -- 1.16
+        return { M.SND_SEQ_EVENT_NOTEOFF, M.SND_SEQ_TIME_STAMP_REAL,
+        0, qid, start, { 0,0 }, { 0,0 }, { ch, key, vel, vel, 0 } } -- 1.18
+	end
 end
 
 function M.pgmchangeevent( ch, value, start )
@@ -734,17 +761,24 @@ Returns an ALSA-event-array, to be scheduled by output().
 Unlike in the I<alsaseq.py> Python module,
 the I<start> and I<duration> elements are in floating-point seconds.
 
-=item I<noteonevent>( ch, key, vel )
+=item I<noteonevent>( ch, key, vel, start )
 
-Returns an ALSA-event-array to be sent directly with output().
+If I<start> is not used, the event will be sent directly.
+Unlike in the I<alsaseq.py> Python module.
+if I<start> is provided, the event will be scheduled in a queue. 
+The I<start> element, when provided, is in floating-point seconds.
 
-=item I<noteoffevent>( ch, key, vel )
+=item I<noteoffevent>( ch, key, vel, start )
 
-Returns an ALSA-event-array to be sent directly with output().
+If I<start> is not used, the event will be sent directly.
+Unlike in the I<alsaseq.py> Python module,
+if I<start> is provided, the event will be scheduled in a queue. 
+The I<start> element, when provided, is in floating-point seconds.
+
 
 =item I<pgmchangeevent>( ch, value, start )
 
-Returns an ALSA-event-array to be sent by output().
+Returns an ALSA-event-array for a I<patch_change> event to be sent by output().
 If I<start> is not used, the event will be sent directly;
 if I<start> is provided, the event will be scheduled in a queue. 
 Unlike in the I<alsaseq.py> Python module,
@@ -915,6 +949,8 @@ http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 CHANGES
 
+ 20130514 1.18 parse_address matches startofstring to hide alsa-lib 1.0.24 bug
+ 20130211      noteonevent and noteoffevent accept a start parameter
  20121208 1.17 test script handles alsa_1.0.16 quirk
  20121205 1.16 queue_id; test script prints better diagnostics; 5.2-compatible
  20111112 1.15 (dis)?connect(from|to) return nil if parse_address fails

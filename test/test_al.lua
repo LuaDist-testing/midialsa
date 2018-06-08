@@ -88,6 +88,11 @@ if not ok(cl==id, "parse_address('"..my_name.."') returns "..id..","..po) then
 	print('# it returned instead: '..cl..','..po)
 end
 
+cl,po = ALSA.parse_address('test_a')
+if not ok(cl==id, "parse_address('test_a') returns "..id..","..po) then
+	print('# it returned instead: '..cl..','..po)
+end
+
 local vm  = 20  -- you may have to change this on your system...
 rc = ALSA.connectfrom(1,vm,0)
 ok(rc, 'connectfrom(1,'..vm..',0)')
@@ -270,7 +275,7 @@ ok(rc, "disconnectto(2,21,0)")
 rc = ALSA.connectto(2, my_name..":1")
 ok(rc, "connectto(2,'"..my_name..":1') connected to myself by name")
 
-correct = {11, 1, 0, 1, 2.5, {id,2}, {id,1}, {0, 0, 0, 0, 0, 99} }
+correct = {11, 1, 0, qid, 2.8, {id,2}, {id,1}, {0, 0, 0, 0, 0, 99} }
 rc =  ALSA.output(correct)
 for i=1,5 do  -- 1.17
 	rc =  ALSA.inputpending()
@@ -281,12 +286,13 @@ for i=1,5 do  -- 1.17
 end
 
 latency = math.floor(0.5 + 1000 * (alsaevent[5]-correct[5]))
+-- alsaevent[4] = 1  -- sometimes it's 0
 alsaevent[5] = correct[5]
 if not ok(equals(alsaevent, correct), "received an event from myself") then
 	print("# alsaevent="..DataDumper(alsaevent));
 	print("# correct="..DataDumper(correct));
 end
-ok(latency < 20, "latency was "..latency.." ms")
+ok(latency < 10, "latency was "..latency.." ms")
 
 rc =  ALSA.disconnectfrom(1,id,2)
 ok(rc, "disconnectfrom(1,"..id..",2)")
@@ -294,25 +300,29 @@ ok(rc, "disconnectfrom(1,"..id..",2)")
 a={}
 a = ALSA.status();
 ok(a[1], 'status() reports running');
-abs_error = 2.5 - a[2]
+abs_error = 2.8 - a[2]
 if abs_error < 0 then abs_error = 0-abs_error end
-ok(abs_error < 0.1, "status() reports time = "..a[2].." not 2.5");
+ok(abs_error < 0.1, "status() reports time = "..a[2].." not 2.8");
 
 os.execute('sleep 1');
 a = ALSA.status();
-abs_error = 3.5 - a[2]
+abs_error = 3.8 - a[2]
 if abs_error < 0 then abs_error = 0-abs_error end
-ok(abs_error < 0.1, "status() reports time = "..a[2].." not 3.5");
+ok(abs_error < 0.1, "status() reports time = "..a[2].." not 3.8");
 
 rc = ALSA.stop()
 ok(rc,'stop() returns success')
 
 alsaevent = ALSA.noteonevent(15, 72, 100, 2.7)
-correct = {6,1,0,253,0,{0,0},{0,0},{15,72,100,0,0}}
+correct = {6,1,0,qid,2.7,{0,0},{0,0},{15,72,100,0,0}}
+-- print("alsaevent="..DataDumper(alsaevent))
+-- print(" correct ="..DataDumper(correct))
 ok(equals(alsaevent, correct), 'noteonevent()')
 
 alsaevent = ALSA.noteoffevent(15, 72, 100, 2.7)
-correct = {7,1,0,253,0,{0,0},{0,0},{15,72,100,100,0}}
+correct = {7,1,0,qid,2.7,{0,0},{0,0},{15,72,100,100,0}}
+-- print("alsaevent="..DataDumper(alsaevent))
+-- print(" correct ="..DataDumper(correct))
 ok(equals(alsaevent, correct), 'noteoffevent()')
 
 alsaevent  = ALSA.noteevent(15, 72, 100, 2.7, 3.1)
