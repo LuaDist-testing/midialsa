@@ -86,7 +86,7 @@ call-compatible Perl CPAN module:
 <a href="#output"><B>output()</B></a>,
 <a href="#start"><B>start()</B></a>,
 <a href="#status"><B>status()</B></a>,
-<a href="#stop"><B>stop()</B></a>,
+<a href="#stop"><B>stop()</B></a> and
 <a href="#syncoutput"><B>syncoutput()</B></a></p>
 <p>Functions based on those in <em>alsamidi.py</em>:
 <a href="#noteevent"><B>noteevent()</B></a>,
@@ -94,16 +94,15 @@ call-compatible Perl CPAN module:
 <a href="#noteoffevent"><B>noteoffevent()</B></a>,
 <a href="#pgmchangeevent"><B>pgmchangeevent()</B></a>,
 <a href="#pitchbendevent"><B>pitchbendevent()</B></a>,
+<a href="#sysex"><B>sysex()</B></a> and
 <a href="#chanpress"><B>chanpress()</B></a></p>
 <p>Functions to interface with <em><A HREF="MIDI.html">MIDI.lua</A></em>:
-<a href="#alsa2opusevent"><B>alsa2opusevent()</B></A>,
-<a href="#alsa2scoreevent"><B>alsa2scoreevent()</B></A>,
-<a href="#scoreevent2alsa"><B>scoreevent2alsa()</B></A>,
-<a href="#rawevent2alsa"><B>rawevent2alsa()</B></A></p>
+<a href="#alsa2scoreevent"><B>alsa2scoreevent()</B></A> and
+<a href="#scoreevent2alsa"><B>scoreevent2alsa()</B></A>
 <p>Functions to to get the current ALSA status:
 <a href="#listclients"><B>listclients()</B></A>,
 <a href="#listnumports"><B>listnumports()</B></A>,
-<a href="#listconnectedto"><B>listconnectedto()</B></A>,
+<a href="#listconnectedto"><B>listconnectedto()</B></A> and
 <a href="#listconnectedfrom"><B>listconnectedfrom()</B></A></p>
 <dl>
 
@@ -190,10 +189,19 @@ are available as module variables:</p>
  ALSA = require 'midialsa'
  for k,v in pairs(ALSA) do print(k) end</pre>
 <p>Note that if the event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
-then the remote client and port do not seem to be correct...</p>
-<p>The data array is documented in
+then the remote client and port do not seem to get set; you need to use
+<A HREF="#listconnected">listconnected()</A> to see what's happened.</p>
+<p>The data array mostly as documented in
 <a href="http://alsa-project.org/alsa-doc/alsa-lib/seq.html">
-http://alsa-project.org/alsa-doc/alsa-lib/seq.html</a></p>
+http://alsa-project.org/alsa-doc/alsa-lib/seq.html</a><BR>
+For NOTE events,  the elements are
+{&nbsp;channel,&nbsp;pitch,&nbsp;velocity,&nbsp;unused,&nbsp;duration }
+For SYSEX events, the data array contains just one element:
+the byte-string, including any F0 and F7 bytes.
+For most other events,  the elements are
+{&nbsp;channel,&nbsp;unused,unused,unused,&nbsp;param,&nbsp;value&nbsp;}
+
+</p>
 </dd>
 
 <dt><strong><a name="inputpending" class="item">
@@ -312,24 +320,14 @@ Unlike in the <em>alsaseq.py</em> Python module,
 the <em>start</em> element, when provided, is in floating-point seconds.</p>
 </dd>
 
-<dt><strong><a name="alsa2opusevent" class="item">
-<em>alsa2opusevent</em>(alsaevent)</a></strong></dt>
-<dd>
-<p>Returns an event in the millisecond-tick score-format
-used by the <em>MIDI.lua</em> and <em>MIDI.py</em> modules,
-based on the opus-format in Sean Burke's MIDI-Perl CPAN module. See:
-<a href="http://www.pjb.com.au/comp/lua/MIDI.html#events">
-http://www.pjb.com.au/comp/lua/MIDI.html#events</a></p>
-</dd>
-
 <dt><strong><a name="alsa2scoreevent" class="item">
 <em>alsa2scoreevent</em>(alsaevent)</a></strong></dt>
 <dd>
-<p>Returns an event in the millisecond-tick score-format
-used by the <em>MIDI.lua</em> and <em>MIDI.py</em> modules,
-based on the score-format in Sean Burke's MIDI-Perl CPAN module. See:
- <a href="http://www.pjb.com.au/comp/lua/MIDI.html#events">
-http://www.pjb.com.au/comp/lua/MIDI.html#events</a></p>
+<p>Returns an event in the millisecond-tick score-format used by the
+<A HREF="./MIDI.html">MIDI.lua</A> and
+<A HREF="../../midi/MIDI.html">MIDI.py</A> modules,
+based on the score-format in Sean Burke's MIDI-Perl CPAN module.
+See: <a href="./MIDI.html#events">MIDI.html#events</a></p>
 <p>Since it combines a <em>note_on</em> and a <em>note_off</em> event
 into one note event, it will return <em>nil</em> when called with the
 <em>note_on</em> event; the calling loop must therefore detect <em>nil</em>
@@ -341,19 +339,21 @@ and not, for example, try to index it.</p>
 <dd><p>
 Returns an ALSA-event-array to be scheduled in a queue by
 <a href="#output"><code>output()</code></a>.
-The input is an event in the millisecond-tick score-format
-used by the <em>MIDI.lua</em> and <em>MIDI.py</em> modules,
-based on the score-format in Sean Burke's MIDI-Perl CPAN module. See:
-<a href="http://www.pjb.com.au/comp/lua/MIDI.html#events">
-http://www.pjb.com.au/comp/lua/MIDI.html#events</a>
+The input is an event in the millisecond-tick score-format used by the
+<A HREF="./MIDI.html">MIDI.lua</A> and
+<A HREF="../../midi/MIDI.html">MIDI.py</A> modules,
+based on the score-format in Sean Burke's MIDI-Perl CPAN module. &nbsp;
+See: <a href="./MIDI.html#events">MIDI.html#events</a>. &nbsp;
 For example:<BR>
  <CODE>ALSA.output(ALSA.scoreevent2alsa{'note',4000,1000,0,62,110})</CODE>
-</p></dd>
-
-<dt><strong><a name="rawevent2alsa" class="item">
-<em>rawevent2alsa</em>()</a></strong></dt>
-<dd><p>
-Unimplemented
+<BR>
+Some events in a .mid file have no equivalent
+real-time-midi event, which is the sort that ALSA deals in;
+these events will cause <CODE>scoreevent2alsa()</CODE> to return <I>nil</I>;
+Therefore if you are going through the events in a midi score
+converting them with <CODE>scoreevent2alsa()</CODE>,
+you should check that the result is not <I>nil</I>
+before doing anything further.
 </p></dd>
 
 <dt><strong><a name="listclients" class="item">
@@ -406,7 +406,7 @@ so you should be able to install it with the command:</p>
  # luarocks install midialsa</pre>
 <p>or:</p>
 <pre>
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.03-0.rockspec</a></pre>
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.04-0.rockspec</a></pre>
 <p>
 </p>
 <hr />
@@ -418,13 +418,14 @@ a bit like <em>aconnect 32 20</em>
 </p><p>
 If an event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
 then the remote client and port seem to be zeroed-out,
-which makes it hard to know which client has disconnected.
+which makes it hard to know which client has just disconnected.
+You have to consult &nbsp;
+<CODE><A HREF="#listconnectedto">listconnectedto()</A></CODE>
+and
+<CODE><A HREF="#listconnectedfrom">listconnectedfrom()</A></CODE>
 </p><p>
 ALSA does not transmit Meta-Events like <I>text_event</I>,
-which is sad, but there's not much can be done about it. Worse:
-<a href="#output"><code>output()</code></a> and
- <a href="#input"><code>input()</code></a>
-do not handle <I>sysex</I> events, which they should.</p>
+and there's not much can be done about that.
 <p>
 </p>
 <hr />

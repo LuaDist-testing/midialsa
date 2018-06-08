@@ -128,7 +128,6 @@ ok(equals(e, correct),
 warn('# feeding ourselves a note_on event...')
 assert(inp:write(string.char(9*16, 60,101))) -- {'note_on',0,60,101}
 assert(inp:flush())
-rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
 local save_time = alsaevent[5]
 correct = { 6, 1, 0, 1, 300, { 24, 0 }, { 129, 1 }, { 0, 60, 101, 0, 0 } }
@@ -136,11 +135,7 @@ alsaevent[5] = 300
 alsaevent[8][5] = 0
 ok(equals(alsaevent, correct),
  'input() returns {6,1,0,1,300,{24,0},{id,1},{0,60,101,0,0}}')
-local opusevent = ALSA.alsa2opusevent(alsaevent)
-opusevent[2] = 300000
-correct = {'note_on',300000,0,60,101}
-ok(equals(opusevent, correct),
- 'alsa2opusevent() returns {"note_on",300000,0,60,101}')
+local scoreevent = ALSA.alsa2scoreevent(alsaevent)
 
 warn('# feeding ourselves a note_off event...')
 assert(inp:write(string.char(8*16, 60,101))) -- {'note_off',0,60,101}
@@ -148,18 +143,34 @@ assert(inp:flush())
 rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
 local save_time = alsaevent[5]
-correct = { 7, 1, 0, 1, 300, { 24, 0 }, { 129, 1 }, { 0, 60, 101, 0, 0 } }
-alsaevent[5] = 300
+correct = { 7, 1, 0, 1, 301, { 24, 0 }, { 129, 1 }, { 0, 60, 101, 0, 0 } }
+alsaevent[5] = 301
 alsaevent[8][5] = 0
 ok(equals(alsaevent, correct),
- 'input() returns {7,1,0,1,300,{24,0},{id,1},{0,60,101,0,0}}')
---print('alsaevent='..DataDumper(alsaevent))
-local opusevent = ALSA.alsa2opusevent(alsaevent)
---print('opusevent='..DataDumper(opusevent))
-opusevent[2] = 300000
-correct = {'note_off',300000,0,60,101}
-ok(equals(opusevent, correct),
- 'alsa2opusevent() returns {"note_off",300000,0,60,101}')
+ 'input() returns {7,1,0,1,301,{24,0},{id,1},{0,60,101,0,0}}')
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
+print("scoreevent="..DataDumper(scoreevent))
+scoreevent[2] = 300000
+correct = {'note',300000,1000,0,60,101}
+ok(equals(scoreevent, correct),
+ 'alsa2scoreevent() returns {"note",300000,1000,0,60,101}')
+
+warn("# feeding ourselves a sysex_f0 event...")
+assert(inp:write("\240}hello world\247"))
+assert(inp:flush())
+alsaevent  = ALSA.input();
+save_time = alsaevent[5];
+correct = {130, 5, 0, 1, 300, {24,0}, {129,1},
+     {"\240}hello world\247",nil,nil,nil,0} }
+alsaevent[5] = 300;
+alsaevent[8][5] = 0;
+ok(equals(alsaevent, correct),
+ 'input() returns {130,5,0,1,300,{24,0},{id,1},{"\\240}hello world\\247"}}');
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+scoreevent[2] = 300000;
+correct = {'sysex_f0',300000,"}hello world\247"}
+ok(equals(scoreevent, correct),
+ 'alsa2scoreevent() returns {"sysex_f0",300000,"}hello world\\247"}');
 
 to = ALSA.listconnectedto()
 correct = {{2,25,0},}
@@ -219,15 +230,16 @@ ok(latency < 20, "latency was "..latency.." ms")
 rc =  ALSA.disconnectfrom(1,id,2)
 ok(rc, "disconnectfrom(1,"..id..",2)")
 
+rc = ALSA.stop()
+ok(rc,'stop() returns success')
+
 alsaevent = ALSA.noteonevent(15, 72, 100, 2.7)
-opusevent = ALSA.alsa2opusevent(alsaevent)
-correct = {'note_on',0,15,72,100}
-ok(equals(opusevent, correct), 'noteonevent()')
+correct = {6,1,0,253,0,{0,0},{0,0},{15,72,100,0,0}}
+ok(equals(alsaevent, correct), 'noteonevent()')
 
 alsaevent = ALSA.noteoffevent(15, 72, 100, 2.7)
-opusevent = ALSA.alsa2opusevent(alsaevent)
-correct = {'note_off',0,15,72,100}
-ok(equals(opusevent, correct), 'noteoffevent()')
+correct = {7,1,0,253,0,{0,0},{0,0},{15,72,100,100,0}}
+ok(equals(alsaevent, correct), 'noteoffevent()')
 
 alsaevent  = ALSA.noteevent(15, 72, 100, 2.7, 3.1)
 scoreevent = ALSA.alsa2scoreevent(alsaevent)
@@ -240,9 +252,9 @@ correct = {'patch_change',2700,11,98}
 ok(equals(scoreevent, correct), 'pgmchangeevent() with time>=0')
 
 alsaevent = ALSA.pgmchangeevent(11, 98)
-opusevent = ALSA.alsa2opusevent(alsaevent)
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
 correct = {'patch_change',0,11,98}
-ok(equals(opusevent, correct), 'pgmchangeevent() with time undefined')
+ok(equals(scoreevent, correct), 'pgmchangeevent() with time undefined')
 
 alsaevent = ALSA.pitchbendevent(11, 98, 2.7)
 scoreevent = ALSA.alsa2scoreevent(alsaevent)
@@ -250,9 +262,9 @@ correct = {'pitch_wheel_change',2700,11,98}
 ok(equals(scoreevent, correct), 'pitchbendevent() with time>=0')
 
 alsaevent = ALSA.pitchbendevent(11, 98)
-opusevent = ALSA.alsa2opusevent(alsaevent)
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
 correct = {'pitch_wheel_change',0,11,98}
-ok(equals(opusevent, correct), 'pitchbendevent() with time undefined')
+ok(equals(scoreevent, correct), 'pitchbendevent() with time undefined')
 
 alsaevent = ALSA.chanpress(11, 98, 2.7)
 scoreevent = ALSA.alsa2scoreevent(alsaevent)
@@ -260,9 +272,43 @@ correct = {'channel_after_touch',2700,11,98}
 ok(equals(scoreevent, correct), 'chanpress() with time>=0')
 
 alsaevent = ALSA.chanpress(11, 98)
-opusevent = ALSA.alsa2opusevent(alsaevent)
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
 correct = {'channel_after_touch',0,11,98}
-ok(equals(opusevent, correct), 'chanpress() with time undefined')
+ok(equals(scoreevent, correct), 'chanpress() with time undefined')
 
-rc = ALSA.stop()
-ok(rc,'stop() returns success')
+correct = {'note',0,1000,15,72,100}
+alsaevent = ALSA.scoreevent2alsa(correct)
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+ok(equals(scoreevent, correct), 'scoreevent2alsa({"note"...})');
+
+correct = {'control_change',10,15,72,100}
+alsaevent = ALSA.scoreevent2alsa(correct);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+ok(equals(scoreevent, correct), 'scoreevent2alsa({"control_change"...})');
+
+correct = {'patch_change',10,15,72}
+alsaevent = ALSA.scoreevent2alsa(correct);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+ok(equals(scoreevent, correct), 'scoreevent2alsa({"patch_change"...})');
+
+correct = {'pitch_wheel_change',10,15,3232}
+alsaevent = ALSA.scoreevent2alsa(correct);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+ok(equals(scoreevent, correct), 'scoreevent2alsa({"pitch_wheel_change"...})');
+
+correct = {'channel_after_touch',10,15,123}
+alsaevent = ALSA.scoreevent2alsa(correct);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+ok(equals(scoreevent, correct), 'scoreevent2alsa({"channel_after_touch"...})');
+
+correct = {'sysex_f0',2,"}hello world\247"}
+alsaevent = ALSA.scoreevent2alsa(correct);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+ok(equals(scoreevent, correct), 'scoreevent2alsa({"sysex_f0"...})');
+
+correct = {'sysex_f7',2,"that's all folks\xF7"}
+alsaevent = ALSA.scoreevent2alsa(correct);
+-- print "alsaevent=",Dumper(alsaevent);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+-- print "scoreevent=",Dumper(scoreevent),"correct=",Dumper(correct);
+ok(equals(scoreevent, correct), 'scoreevent2alsa({"sysex_f7"...})');

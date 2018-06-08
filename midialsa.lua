@@ -8,9 +8,9 @@
 -- This module is a translation into Lua by Peter Billam
 -- of the alsaseq and alsamidi Python modules by Patricio Paez.
 -- The calling interface is reasonably identical.
-
 -- see: pydoc3 alsaseq ;    pydoc3 alsamidi
 --      http://alsa-project.org/alsa-doc/alsa-lib/seq.html
+
 -- Example usage:
 -- local ALSA = require 'midialsa'
 -- ALSA.client( 'Lua client', 1, 1, false )
@@ -23,8 +23,10 @@
 -- end
 
 local M = {} -- public interface
-M.Version = '1.02'
-M.VersionDate = '13feb2011'
+M.Version     = '1.04'
+M.VersionDate = '3mar2011'
+-- 20110303 1.04 output, input, *2alsa and alsa2* now handle sysex events
+-- 20110228 1.03 add listclients, listconnectedto and listconnectedfrom
 -- 20110213 1.02 add disconnectto and disconnectfrom
 -- 20110210 1.01 output() no longer floors the time to the nearest second
 -- 20110209 1.01 pitchbendevent() and chanpress() return correct data
@@ -75,15 +77,43 @@ function M.client(name, ninputports, noutputports, createqueue)
 	return prv.client(name, ninputports, noutputports, createqueue)
 end
 function M.connectfrom( inputport, src_client, src_port )
+	if type(src_client) == 'string' and not src_port then
+		local c,p = string.match(src_client, '^(%d+):(%d+)$')
+		if c and p then
+			src_client = c
+			src_port   = p
+		end
+	end
 	return prv.connectfrom( inputport, src_client, src_port )
 end
 function M.connectto( outputport, dest_client, dest_port )
+	if type(dest_client) == 'string' and not dest_port then
+		local c,p = string.match(dest_client, '^(%d+):(%d+)$')
+		if c and p then
+			dest_client = c
+			dest_port   = p
+		end
+	end
 	return prv.connectto( outputport, dest_client, dest_port )
 end
 function M.disconnectfrom( inputport, src_client, src_port )
+	if type(src_client) == 'string' and not src_port then
+		local c,p = string.match(src_client, '^(%d+):(%d+)$')
+		if c and p then
+			src_client = c
+			src_port   = p
+		end
+	end
 	return prv.disconnectfrom( inputport, src_client, src_port )
 end
 function M.disconnectto( outputport, dest_client, dest_port )
+	if type(dest_client) == 'string' and not dest_port then
+		local c,p = string.match(dest_client, '^(%d+):(%d+)$')
+		if c and p then
+			dest_client = c
+			dest_port   = p
+		end
+	end
 	return prv.disconnectto( outputport, dest_client, dest_port )
 end
 function M.fd()
@@ -94,22 +124,49 @@ function M.id()
 end
 function M.input()
 	local ev = {prv.input()}
-	return { ev[1], ev[2], ev[3], ev[4], ev[5],
-	 {ev[6],ev[7]}, {ev[8],ev[9]},
-	 {ev[10],ev[11],ev[12],ev[13],ev[14],ev[15]} }
+	if ev[1] == M.SND_SEQ_EVENT_SYSEX then -- $data[0]=length, $data[6]=char*
+		-- If you receive a sysex remember the data-string starts
+		-- with a F0 and and ends with a F7.  "\240}hello world\247"
+		-- If you're reveiving a multiblock sysex, the first block has its
+		-- F0 at the beginning, and the last block has a F7 at the end.
+		return { ev[1], ev[2], ev[3], ev[4], ev[5],
+		  {ev[6],ev[7]}, {ev[8],ev[9]}, {ev[10]} }
+		-- We could test for a top bit set and if so return nil ...
+		-- but that would mean every caller would have to test for nil :-(
+		-- We can't just hang waiting for the next event, because the caller
+		-- may have called inputpending() and probably doesn't want to hang.
+	else
+		return { ev[1], ev[2], ev[3], ev[4], ev[5],
+		  {ev[6],ev[7]}, {ev[8],ev[9]},
+		  {ev[10],ev[11],ev[12],ev[13],ev[14],ev[15]} }
+	end
 end
 function M.inputpending()
 	return prv.inputpending()
 end
+
 function M.output(e)
 	if e == nil then return end
 	local ev   = deepcopy(e)
 	local data = table.remove(ev)
 	local src  = ev[6]
 	local dest = ev[7]
-	return prv.output(ev[1], ev[2], ev[3], ev[4], ev[5],
-	 src[1],src[2], dest[1],dest[2],
-	 data[1],data[2],data[3],data[4],data[5],data[6])
+	if ev[1] == M.SND_SEQ_EVENT_SYSEX then -- $data[0]=length, $data[6]=char*
+		local s = data[1]
+		-- If you're sending a sysex remember the data-string needs an F0
+		-- and an F7.  (SND_SEQ_EVENT_SYSEX, ...., ["\xF0}hello world\xF7"])
+		-- If you're sending a multiblock sysex, the first block needs its
+		-- F0 at the beginning, and the last block needs a F7 at the end.
+		-- could reject events with a top bit in the databytes, like MIDI::ALSA
+		return prv.output(ev[1], ev[2], ev[3], ev[4], ev[5],
+		  src[1],src[2], dest[1],dest[2],
+          string.len(s),1,2,3,4,5,s)
+    else
+		return prv.output(ev[1], ev[2], ev[3], ev[4], ev[5],
+		  src[1],src[2], dest[1],dest[2],
+		  data[1],data[2],data[3],data[4],data[5],data[6])
+    end
+
 end
 function M.start(queue)
 	return prv.start()
@@ -128,7 +185,7 @@ end
 function M.noteevent( ch, key, vel, start, duration )
     return { M.SND_SEQ_EVENT_NOTE, M.SND_SEQ_TIME_STAMP_REAL,
         0, 0, start, { 0,0 }, { 0,0 },
-		{ ch, key, vel, 0, math.floor(0.5 + 1000*duration) } }
+		{ ch, key, vel, vel, math.floor(0.5 + 1000*duration) } }
 end
 
 function M.noteonevent( ch, key, vel )
@@ -140,7 +197,7 @@ end
 function M.noteoffevent( ch, key, vel )
     return { M.SND_SEQ_EVENT_NOTEOFF, M.SND_SEQ_TIME_STAMP_REAL,
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
-        { 0,0 }, { 0,0 }, { ch, key, vel, 0, 0 } }
+        { 0,0 }, { 0,0 }, { ch, key, vel, vel, 0 } }
 end
 
 function M.pgmchangeevent( ch, value, start )
@@ -180,67 +237,69 @@ function M.chanpress( ch, value, start )
         { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
 	end
 end
+function M.sysex( ch, value, start )
+    if string.find(value, '[\128-\255]') then
+        warn("sysex: the string "..value.." has top-bits set :-(")
+        return nil
+    end
+    if start == nil then
+        return { M.SND_SEQ_EVENT_SYSEX, M.SND_SEQ_TIME_STAMP_REAL,
+        0, M.SND_SEQ_QUEUE_DIRECT, 0,
+        { 0,0 }, { 0,0 }, {"\240"..value.."\247",} }
+    else
+        return { M.SND_SEQ_EVENT_SYSEX, M.SND_SEQ_TIME_STAMP_REAL,
+        0, 0, start,
+        { 0,0 }, { 0,0 }, {"\240"..value.."\247",} }
+    end
+end
+
 ------------- public functions to handle MIDI.lua events  -------------
 -- for MIDI.lua events see http://www.pjb.com.au/comp/lua/MIDI.html#events
 -- for data args see http://alsa-project.org/alsa-doc/alsa-lib/seq.html
 -- http://alsa-project.org/alsa-doc/alsa-lib/group___seq_events.html
 
-local ticks_so_far = 0;
 local chapitch2note_on_events = {}  -- this mechanism courtesy of MIDI.lua
-function M.alsa2opusevent(alsaevent, want_score)
-	local new_ticks = math.floor(0.5 + 1000*alsaevent[5])
-	local ticks
-	local function_name
-	if want_score then
-		function_name = 'midialsa.alsa2scoreevent'
-		ticks = new_ticks
-	else
-		function_name = 'midialsa.alsa2opusevent'
-		ticks = new_ticks - ticks_so_far
-		if ticks < 0 then ticks = 0 end
-		ticks_so_far = new_ticks
+function M.alsa2scoreevent(alsaevent)
+	if #alsaevent < 8 then
+		warn("alsa2scoreevent: event too short")
+		return {}
 	end
+	local ticks = math.floor(0.5 + 1000*alsaevent[5])
+	local func = 'midialsa.alsa2scoreevent'
 	local data = alsaevent[8]  -- deepcopy?
 	-- snd_seq_ev_note_t: channel, note, velocity, off_velocity, duration
 	if alsaevent[1] == M.SND_SEQ_EVENT_NOTE then
 		return { 'note',ticks,data[5],data[1],data[2],data[3] } -- 1.01
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_NOTEOFF
 	 or (alsaevent[1] == M.SND_SEQ_EVENT_NOTEON and data[3] == 0) then
-		if want_score then
-			local cha = data[1]
-			local pitch = data[2]
-			local key = cha*128 + pitch
-			local pending_notes = chapitch2note_on_events[key]
-			if pending_notes and #pending_notes > 0 then
-				local new_e = table.remove(pending_notes, 1)
-				new_e[3] = ticks - new_e[2]
-				return new_e
-			elseif pitch > 127 then
-				warn(function_name..': note_off with no note_on, bad pitch='
-					 ..tostring(pitch))
-				return nil
-			else
-				warn(function_name..': note_off with no note_on cha='
-				 ..tostring(cha)..' pitch='..tostring(pitch))
-				return nil
-			end
+		local cha = data[1]
+		local pitch = data[2]
+		local key = cha*128 + pitch
+		local pending_notes = chapitch2note_on_events[key]
+		if pending_notes and #pending_notes > 0 then
+			local new_e = table.remove(pending_notes, 1)
+			new_e[3] = ticks - new_e[2]
+			return new_e
+		elseif pitch > 127 then
+			warn(func..': note_off with no note_on, bad pitch='
+			  ..tostring(pitch))
+			return nil
 		else
-			return { 'note_off',ticks,data[1],data[2],data[3] }
+			warn(func..': note_off with no note_on cha='
+			  ..tostring(cha)..' pitch='..tostring(pitch))
+			return nil
 		end
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_NOTEON then
 		local cha = data[1]
 		local pitch = data[2]
-		if want_score then
-			local key = cha*128 + pitch
-			local new_e = {'note',ticks,0,cha,pitch,data[3]}
-			if chapitch2note_on_events[key] then
-				table.insert(chapitch2note_on_events[key], new_e)
-			else
-				chapitch2note_on_events[key] = {new_e,}
-			end
+		local key = cha*128 + pitch
+		local new_e = {'note',ticks,0,cha,pitch,data[3]}
+		if chapitch2note_on_events[key] then
+			table.insert(chapitch2note_on_events[key], new_e)
 		else
-			return { 'note_on',ticks,cha,pitch,data[3] }
+			chapitch2note_on_events[key] = {new_e}
 		end
+		return nil
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_CONTROLLER then
 		return { 'control_change',ticks,data[1],data[5],data[6] }
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_PGMCHANGE then
@@ -249,16 +308,23 @@ function M.alsa2opusevent(alsaevent, want_score)
 		return { 'pitch_wheel_change',ticks,data[1],data[6] }
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_CHANPRESS then
 		return { 'channel_after_touch',ticks,data[1],data[6] }
+	elseif alsaevent[1] == M.SND_SEQ_EVENT_SYSEX then
+		local s = data[1]
+		if string.sub(s,1,1) == "\240" then
+			return { 'sysex_f0',ticks,string.sub(s,2,-1) }
+		else
+			return { 'sysex_f7',ticks,s }
+		end
+	elseif alsaevent[1] == M.SND_SEQ_EVENT_PORT_SUBSCRIBED
+        or alsaevent[1] == M.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then
+		return nil  -- only have meaning to an ALSA client not in a .mid file
 	else
-		warn(function_name..': unsupported event-type '..alsaevent[1])
+		warn(func..': unsupported event-type '..alsaevent[1])
 		return nil
 	end
 end
-function M.alsa2scoreevent(alsaevent)
-	return M.alsa2opusevent(alsaevent, true)
-end
 function M.scoreevent2alsa(event)
-	warn('entered')
+	-- warn('entered')
 	local time_in_secs = 0.001*event[2]  -- ms ticks -> secs
 	if event[1] == 'note' then
 		-- note on and off with duration; event data type = snd_seq_ev_note_t
@@ -274,39 +340,55 @@ function M.scoreevent2alsa(event)
 		-- program change; data type=snd_seq_ev_ctrl_t, param is ignored
 		return { M.SND_SEQ_EVENT_PGMCHANGE, M.SND_SEQ_TIME_STAMP_REAL,
 		 0, 0, time_in_secs, { 0,0 }, { 0,0 },
-		 { event[3], 0,0,0, event[4], event[4] } }
+		 { event[3], 0,0,0, 0, event[4] } }
 	elseif event[1] == 'pitch_wheel_change' then
 		-- pitchwheel; snd_seq_ev_ctrl_t; data is from -8192 to 8191
 		return { M.SND_SEQ_EVENT_PITCHBEND, M.SND_SEQ_TIME_STAMP_REAL,
 		 0, 0, time_in_secs, { 0,0 }, { 0,0 },
-		 { event[3], 0,0,0, event[4], event[4] } }
+		 { event[3], 0,0,0, 0, event[4] } }
 	elseif event[1] == 'channel_after_touch' then
-		-- channel_after_touch; snd_seq_ev_ctrl_t; data is from -8192 to 8191
 		return { M.SND_SEQ_EVENT_CHANPRESS, M.SND_SEQ_TIME_STAMP_REAL,
 		 0, 0, time_in_secs, { 0,0 }, { 0,0 },
-		 { event[3], 0,0,0, event[4], event[4] } }
-	elseif event[1] == 'time_signature' then  -- ticks, nn,dd, cc,bb
-		-- time_signature; snd_seq_ev_ctrl_t; data is from -8192 to 8191
-		return { M.SND_SEQ_EVENT_TIMESIGN, M.SND_SEQ_TIME_STAMP_REAL,
-		 0, 0, time_in_secs, { 0,0 }, { 0,0 },
-		 { event[3], 0,0,0, event[4], event[4] } }
+		 { event[3], 0,0,0, 0, event[4] } }
+--[[
 	elseif event[1] == 'key_signature' then  -- ticks, sf,mi
 		-- key_signature; snd_seq_ev_ctrl_t; data is from -8192 to 8191
 		return { M.SND_SEQ_EVENT_KEYSIGN, M.SND_SEQ_TIME_STAMP_REAL,
 		 0, 0, time_in_secs, { 0,0 }, { 0,0 },
 		 { event[3], 0,0,0, event[4], event[5] } }
-	elseif event[1] == 'set_tempo' then  -- ticks, us_per_beat
+	elseif event[1] == 'set_tempo' then  -- ticks, usec_per_beat
 		-- set_tempo; snd_seq_ev_queue_control
 		return { M.SND_SEQ_EVENT_TEMPO, M.SND_SEQ_TIME_STAMP_REAL,
 		 0, 0, time_in_secs, { 0,0 }, { 0,0 },
 		 { event[3], 0,0,0, 0, 0 } }
+]]
+	elseif event[1] == 'sysex_f0' then
+		-- If you're sending a sysex remember the data-string usually needs
+		-- an F7 at the end.  {'sysex_f0', ticks, "}hello world\247"}
+		-- If you're sending a multiblock sysex, the first block should
+		-- be a sysex_f0, all subsequent blocks should be sysex_f7's,
+		-- of which the last block needs a F7 at the end.
+		local s = event[3]
+		if string.sub(s,1,1) ~= "\240" then s = "\240"..s end
+		return { M.SND_SEQ_EVENT_SYSEX, M.SND_SEQ_TIME_STAMP_REAL,
+		 0, 0, time_in_secs, { 0,0 }, { 0,0 }, { s } }
+	elseif event[1] == 'sysex_f7' then
+        -- If you're sending a multiblock sysex, the first block should
+        -- be a sysex_f0, all subsequent blocks should be sysex_f7's,
+        -- of which the last block needs a F7 at the end.
+        -- You can also use a sysex_f7 to sneak in a MIDI command that
+        -- cannot be otherwise specified in .mid files, such as System
+        -- Common messages except SysEx, or System Realtime messages.
+        -- E.g., you can output a MIDI Tune-Request message (F6) by
+        -- {'sysex_f7', <delta>, "\246"} which will put the event
+        -- "<delta> F7 01 F6" into the .mid file, and hence the
+        -- byte F6 onto the wire.
+		return { M.SND_SEQ_EVENT_SYSEX, M.SND_SEQ_TIME_STAMP_REAL,
+		 0, 0, time_in_secs, { 0,0 }, { 0,0 }, { event[3] } }
 	else
-		warn('midialsa.scoreevent2alsa: unsupported event '..event[1])
+		-- Meta-event, or unsupported event
 		return nil
 	end
-end
-
-function M.rawevent2alsa()
 end
 
 ---------- public functions to get the current ALSA status  -----------
@@ -416,15 +498,15 @@ I<MIDI::ALSA> http://search.cpan.org/~pjb
 =head1 FUNCTIONS
 
 Functions based on those in I<alsaseq.py>:
-client(), connectfrom(), connectto(), fd(), id(), input(), inputpending(),
-output(), start(), status(), stop(), syncoutput()
+client(), connectfrom(), connectto(), disconnectfrom(), disconnectto(), fd(),
+id(), input(), inputpending(), output(), start(), status(), stop(), syncoutput()
 
 Functions based on those in I<alsamidi.py>:
 noteevent(), noteonevent(), noteoffevent(), pgmchangeevent(),
-pitchbendevent(), chanpress()
+pitchbendevent(), chanpress(), sysex()
 
 Functions to interface with I<MIDI.lua>:
-alsa2opusevent(), alsa2scoreevent(), scoreevent2alsa(), rawevent2alsa()
+alsa2scoreevent(), scoreevent2alsa()
 
 Functions to get the current ALSA status:
 listclients(), listnumports(), listconnectedto(), listconnectedfrom()
@@ -503,10 +585,18 @@ are available as module variables:
  for k,v in pairs(ALSA) do print(k) end
 
 Note that if the event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
-then the remote client and port do not seem to be correct...
+then the remote client and port do not get set;
+you need to use listconnected() to see what's happened.
 
-The data array is documented in
-http://alsa-project.org/alsa-doc/alsa-lib/seq.html
+The data array is mostly as documented in
+http://alsa-project.org/alsa-doc/alsa-lib/seq.html.
+For NOTE events,  the elements are
+{ channel, pitch, velocity, unused, duration };
+For SYSEX events, the data array contains just one element:
+the byte-string, including any F0 and F7 bytes.
+For most other events,  the elements are
+{ channel, unused,unused,unused, param, value }
+
 
 =item I<inputpending>()
 
@@ -601,12 +691,15 @@ if I<start> is provided, the event will be scheduled in a queue.
 Unlike in the I<alsaseq.py> Python module,
 the I<start> element, when provided, is in floating-point seconds.
 
-=item I<alsa2opusevent>(alsaevent)
+=item sysex( $ch, $string, $start )
 
-Returns an event in the millisecond-tick score-format
-used by the I<MIDI.lua> and I<MIDI.py> modules,
-based on the opus-format in Sean Burke's MIDI-Perl CPAN module. See:
- http://www.pjb.com.au/comp/lua/MIDI.html#events
+Returns an ALSA-event-array to be sent by output().
+If I<start> is not used, the event will be sent directly;
+if I<start> is provided, the event will be scheduled in a queue. 
+The string should start with your Manufacturer ID,
+but should not contain any of the F0 or F7 bytes,
+they will be added automatically;
+indeed the string must not contain any bytes with the top-bit set.
 
 =item I<alsa2scoreevent>(alsaevent)
 
@@ -631,9 +724,12 @@ For example:
 
  ALSA.output(ALSA.scoreevent2alsa{'note',4000,1000,0,62,110})
 
-=item I<rawevent2alsa>()
-
-Unimplemented
+Some events in a .mid file have no equivalent
+real-time-midi event, which is the sort that ALSA deals in;
+these events will cause scoreevent2alsa() to return nil.
+Therefore if you are going through the events in a midi score
+converting them with scoreevent2alsa(),
+you should check that the result is not nil before doing anything further.
 
 =item listclients()
 
@@ -678,7 +774,7 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.03-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.04-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
@@ -693,9 +789,8 @@ If an event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
 then the remote client and port seem to be zeroed-out,
 which makes it hard to know which client has just disconnected.
 
-ALSA does not transmit Meta-Events like I<text_event>, which is sad,
-but there's not much can be done about it.
-Worse: output() and input() do not handle sysex events, which they should.
+ALSA does not transmit Meta-Events like I<text_event>,
+and there's not much can be done about that.
 
 =head1 AUTHOR
 

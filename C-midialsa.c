@@ -74,8 +74,7 @@ static int c_client(lua_State *L) {
 }
 
 static int c_start(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	int rc = snd_seq_start_queue(seq_handle, queue_id, NULL);
 	snd_seq_drain_output(seq_handle);
 	lua_pushboolean(L, rc);
@@ -83,8 +82,7 @@ static int c_start(lua_State *L) {
 }
 
 static int c_stop(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	int rc = snd_seq_stop_queue(seq_handle, queue_id, NULL);
 	snd_seq_drain_output(seq_handle);
 	lua_pushboolean(L, rc);
@@ -92,8 +90,7 @@ static int c_stop(lua_State *L) {
 }
 
 static int c_status(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	snd_seq_queue_status_t *queue_status;
 	int running, events;
 	const snd_seq_real_time_t *current_time;
@@ -113,8 +110,7 @@ static int c_status(lua_State *L) {
 }
 
 static int c_connectfrom(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	/* Lua stack: inputport, src_client, src_port */
 	lua_Integer myport     = lua_tointeger(L, 1);
 	lua_Integer src_client = lua_tointeger(L, 2);
@@ -130,8 +126,7 @@ static int c_connectfrom(lua_State *L) {
 }
 
 static int c_connectto(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	/* Lua stack: outputport, dest_client, dest_port */
 	lua_Integer myport      = lua_tointeger(L, 1);
 	lua_Integer dest_client = lua_tointeger(L, 2);
@@ -147,8 +142,7 @@ static int c_connectto(lua_State *L) {
 }
 
 static int c_disconnectfrom(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	/* Lua stack: inputport, src_client, src_port */
 	lua_Integer myport     = lua_tointeger(L, 1);
 	lua_Integer src_client = lua_tointeger(L, 2);
@@ -164,8 +158,7 @@ static int c_disconnectfrom(lua_State *L) {
 }
 
 static int c_disconnectto(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	/* Lua stack: outputport, dest_client, dest_port */
 	lua_Integer myport      = lua_tointeger(L, 1);
 	lua_Integer dest_client = lua_tointeger(L, 2);
@@ -181,8 +174,7 @@ static int c_disconnectto(lua_State *L) {
 }
 
 static int c_fd(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	int npfd;
 	struct pollfd *pfd;
 	npfd = snd_seq_poll_descriptors_count(seq_handle, POLLIN);
@@ -193,17 +185,17 @@ static int c_fd(lua_State *L) {
 }
 
 static int c_id(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	lua_pushinteger(L, snd_seq_client_id( seq_handle ));
 	return 1;
 }
 
 static int c_input(lua_State *L) {
-	/* test if seq_handle exists, to avoid segfault */
-	if (seq_handle == NULL) { return(0); }
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	snd_seq_event_t *ev;
-	snd_seq_event_input( seq_handle, &ev );
+	int err;
+	err = snd_seq_event_input( seq_handle, &ev );
+	if (err < 0) { return(0); }  /* 1.04 survive SIGINT */
 	/* returns: (type, flags, tag, queue, time, src_client, src_port,
 	   dest_client, dest_port, data...)
 	   We flatten out the list here so as not to have to use userdata
@@ -245,6 +237,11 @@ static int c_input(lua_State *L) {
 			return 15;
             break;
 
+		case SND_SEQ_EVENT_SYSEX:
+			lua_pushstring(L, ev->data.ext.ptr);  /* length? */
+			return 10;
+			break;
+
 		default:
 			/* lua_pushinteger(L, ev->data.note.channel);
 			lua_pushinteger(L, ev->data.note.note);
@@ -252,6 +249,7 @@ static int c_input(lua_State *L) {
 			lua_pushinteger(L, ev->data.note.off_velocity);
 			lua_pushinteger(L, ev->data.note.duration); */
 			return 9;
+			break;
 	}
 }
 
@@ -280,6 +278,7 @@ static int c_output(lua_State *L) {
 	ev.dest.client   = lua_tointeger(L, 8);
 	ev.dest.port     = lua_tointeger(L, 9);
 	static int * data;
+	char * sysex_data;
 	switch( ev.type ) {
 		case SND_SEQ_EVENT_NOTE:
 		case SND_SEQ_EVENT_NOTEON:
@@ -304,10 +303,10 @@ static int c_output(lua_State *L) {
 			ev.data.control.value     = lua_tointeger(L, 15);
 			break;
 
-		case SND_SEQ_EVENT_SYSEX: /* the calling args will need a string */
-			/* snd_seq_ev_set_variable ( ev, datalen, dataptr ) */
-			break;
-
+		case SND_SEQ_EVENT_SYSEX:
+			sysex_data = (char *) luaL_checkstring(L, 16);
+			snd_seq_ev_set_variable( &ev, lua_tointeger(L, 10), sysex_data);
+            break;
 	}
 	/* If not a direct event, use the queue */
 	if ( ev.queue != SND_SEQ_QUEUE_DIRECT )
@@ -400,8 +399,9 @@ static int c_listconnections (lua_State *L) {
 
 static int c_syncoutput(lua_State *L) {
 	if (seq_handle == NULL) { return(0); }
-	snd_seq_sync_output_queue( seq_handle );
-	return 0;
+	int rc = snd_seq_sync_output_queue( seq_handle );
+	lua_pushinteger(L, rc);
+	return 1;
 }
 
 struct constant {  /* Gems p. 334 */
