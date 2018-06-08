@@ -66,6 +66,11 @@ ok(not rc, "inputpending() with no client returned "..tostring(rc))
 rc = ALSA.client('test_a.lua',2,2,1)
 ok(rc, "client('test_a.lua',2,2,1)")
 
+-- my ($seconds, $microseconds) = Time::HiRes::gettimeofday;
+-- my $start_time = $seconds + 1.0E-6 * $microseconds;
+-- No builtin sub-second time; could usedate +%s.%N
+-- As a cheapo, use 2.5
+
 rc = ALSA.connectfrom(1,24,0)
 ok(rc, 'connectfrom(1,24,0)')
 
@@ -103,7 +108,10 @@ rc =  ALSA.inputpending()
 ok(rc > 0, 'inputpending() returns '..rc)
 local alsaevent  = ALSA.input()
 correct = {11, 1, 0, 1, 300, {24,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
+alsaevent[4] = 1
 alsaevent[5] = 300
+-- print("alsaevent="..DataDumper(alsaevent));
+-- print("correct="..DataDumper(correct));
 ok(equals(alsaevent, correct),
  'input() returns {11,1,0,1,300,{24,0},{id,1},{0,0,0,0,0,99}}')
 local e = ALSA.alsa2scoreevent(alsaevent)
@@ -130,7 +138,7 @@ assert(inp:write(string.char(9*16, 60,101))) -- {'note_on',0,60,101}
 assert(inp:flush())
 local alsaevent  = ALSA.input()
 local save_time = alsaevent[5]
-correct = { 6, 1, 0, 1, 300, { 24, 0 }, { 129, 1 }, { 0, 60, 101, 0, 0 } }
+correct = { 6, 1, 0, 1, 300, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
 alsaevent[5] = 300
 alsaevent[8][5] = 0
 ok(equals(alsaevent, correct),
@@ -143,7 +151,7 @@ assert(inp:flush())
 rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
 local save_time = alsaevent[5]
-correct = { 7, 1, 0, 1, 301, { 24, 0 }, { 129, 1 }, { 0, 60, 101, 0, 0 } }
+correct = { 7, 1, 0, 1, 301, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
 alsaevent[5] = 301
 alsaevent[8][5] = 0
 ok(equals(alsaevent, correct),
@@ -160,7 +168,7 @@ assert(inp:write("\240}hello world\247"))
 assert(inp:flush())
 alsaevent  = ALSA.input();
 save_time = alsaevent[5];
-correct = {130, 5, 0, 1, 300, {24,0}, {129,1},
+correct = {130, 5, 0, 1, 300, {24,0}, {id,1},
      {"\240}hello world\247",nil,nil,nil,0} }
 alsaevent[5] = 300;
 alsaevent[8][5] = 0;
@@ -229,6 +237,20 @@ ok(latency < 20, "latency was "..latency.." ms")
 
 rc =  ALSA.disconnectfrom(1,id,2)
 ok(rc, "disconnectfrom(1,"..id..",2)")
+
+a={}
+a = ALSA.status();
+ok(a[1], 'status() reports running');
+abs_error = 2.5 - a[2]
+if abs_error < 0 then abs_error = 0-abs_error end
+ok(abs_error < 0.1, "status() reports time = "..a[2].." not 2.5");
+
+os.execute('sleep 1');
+a = ALSA.status();
+ok(a[1], 'status() reports running');
+abs_error = 3.5 - a[2]
+if abs_error < 0 then abs_error = 0-abs_error end
+ok(abs_error < 0.1, "status() reports time = "..a[2].." not 3.5");
 
 rc = ALSA.stop()
 ok(rc,'stop() returns success')

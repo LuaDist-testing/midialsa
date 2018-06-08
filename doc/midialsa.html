@@ -49,7 +49,7 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
  ALSA.client( 'Lua client', 1, 1, false )
  ALSA.connectto( 0, 20, 0 )
  ALSA.connectfrom( 1, 14, 0 )
- while true then
+ while true do
      local alsaevent = ALSA.input()
      if alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then break end
      ALSA.output( alsaevent )
@@ -94,8 +94,8 @@ call-compatible Perl CPAN module:
 <a href="#noteoffevent"><B>noteoffevent()</B></a>,
 <a href="#pgmchangeevent"><B>pgmchangeevent()</B></a>,
 <a href="#pitchbendevent"><B>pitchbendevent()</B></a>,
-<a href="#sysex"><B>sysex()</B></a> and
-<a href="#chanpress"><B>chanpress()</B></a></p>
+<a href="#chanpress"><B>chanpress()</B></a> and
+<a href="#sysex"><B>sysex()</B></a></p>
 <p>Functions to interface with <em><A HREF="MIDI.html">MIDI.lua</A></em>:
 <a href="#alsa2scoreevent"><B>alsa2scoreevent()</B></A> and
 <a href="#scoreevent2alsa"><B>scoreevent2alsa()</B></A>
@@ -107,14 +107,14 @@ call-compatible Perl CPAN module:
 <dl>
 
 <dt><strong><a name="client" class="item">
-<em>client</em>(name, ninputports, noutputports, createqueue)</a></strong></dt>
+<em>client</em>( name, ninputports, noutputports, createqueue )</a></strong></dt>
 <dd>
 <p>Create an ALSA sequencer client with zero or more input or output ports,
 and optionally a timing queue.  ninputports and noutputports are created
 if the quantity requested is between 1 and 4 for each.
 If createqueue = true, it creates a queue for stamping the arrival time of
-incoming events and scheduling future start times of outgoing events.</p>
-<p>Unlike in the <em>alsaseq.py</em> Python module,
+incoming events and scheduling future start times of outgoing events.<BR>
+Unlike in the <em>alsaseq.py</em> Python module,
 it returns success or failure.</p>
 </dd>
 
@@ -125,8 +125,8 @@ it returns success or failure.</p>
 Each input port can connect from more than one client.
 The <a href="#input"><code>input()</code></a> function will receive events
 from any intput port and any of the clients connected to each of them.
-Events from each client can be distinguised by their source field.</p>
-<p>Unlike in the <em>alsaseq.py</em> Python module,
+Events from each client can be distinguished by their source field.<BR>
+Unlike in the <em>alsaseq.py</em> Python module,
 it returns success or failure.</p>
 </dd>
 
@@ -137,8 +137,8 @@ it returns success or failure.</p>
 Each outputport can connect to more than one client.
 Events sent to an output port using the
 <a href="#output"><code>output()</code></a>  funtion will be sent
-to all clients that are connected to it using this function.</p>
-<p>Unlike in the <em>alsaseq.py</em> Python module,
+to all clients that are connected to it using this function.<BR>
+Unlike in the <em>alsaseq.py</em> Python module,
 it returns success or failure.</p>
 </dd>
 
@@ -195,12 +195,11 @@ then the remote client and port do not seem to get set; you need to use
 <a href="http://alsa-project.org/alsa-doc/alsa-lib/seq.html">
 http://alsa-project.org/alsa-doc/alsa-lib/seq.html</a><BR>
 For NOTE events,  the elements are
-{&nbsp;channel,&nbsp;pitch,&nbsp;velocity,&nbsp;unused,&nbsp;duration }
-For SYSEX events, the data array contains just one element:
-the byte-string, including any F0 and F7 bytes.
+{&nbsp;channel,&nbsp;pitch,&nbsp;velocity,&nbsp;unused,&nbsp;duration }<BR>
+For SYSEX, the data array has just one element:
+the byte-string, including any F0 and F7 bytes.<BR>
 For most other events,  the elements are
 {&nbsp;channel,&nbsp;unused,unused,unused,&nbsp;param,&nbsp;value&nbsp;}
-
 </p>
 </dd>
 
@@ -214,7 +213,7 @@ and the next event will be of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED</p>
 </dd>
 
 <dt><strong><a name="output" class="item"> <em>output</em>(
-{type, flags, tag, queue, time, source, destination, data} )</a></strong></dt>
+{ type, flags, tag, queue, time, source, destination, data } )</a></strong></dt>
 <dd>
 <p>Send an ALSA-event-array to an output port.
 The format of the event is dicussed in
@@ -239,13 +238,12 @@ Use <a href="#status"><code>status()</code></a>
 to know how many events are scheduled in the queue.</p>
 </dd>
 
-<dt><strong><a name="start" class="item"><em>start</em>(queue)</a></strong></dt>
+<dt><strong><a name="start" class="item"><em>start</em>()</a></strong></dt>
 <dd>
 <p>Start the queue. It is ignored if the client does not have a queue.</p>
 </dd>
 
-<dt><strong><a name="status" class="item">
-<em>status</em>(queue)</a></strong></dt>
+<dt><strong><a name="status" class="item"><em>status</em>()</a></strong></dt>
 <dd>
 <p>Return { status, time, events } of the queue.</p>
 <pre>
@@ -257,13 +255,13 @@ Unlike in the <em>alsaseq.py</em> Python module,
 the <em>time</em> element is in floating-point seconds.</p>
 </dd>
 
-<dt><strong><a name="stop" class="item"><em>stop</em>(queue)</a></strong></dt>
+<dt><strong><a name="stop" class="item"><em>stop</em>()</a></strong></dt>
 <dd>
 <p>Stop the queue. It is ignored if the client does not have a queue.</p>
 </dd>
 
 <dt><strong><a name="syncoutput" class="item">
-<em>syncoutput</em>(queue)</a></strong></dt>
+<em>syncoutput</em>()</a></strong></dt>
 <dd>
 <p>Wait until output events are processed.</p>
 </dd>
@@ -304,6 +302,7 @@ the <em>start</em> element, when provided, is in floating-point seconds.</p>
 <em>pitchbendevent</em>( ch, value, start )</a></strong></dt>
 <dd>
 <p>Returns an ALSA-event-array to be sent by <a href="#output"><code>output()</code></a>.
+The <I>value</I> is from -8192 to 8191.
 If <em>start</em> is not used, the event will be sent directly;
 if <em>start</em> is provided, the event will be scheduled in a queue. 
 Unlike in the <em>alsaseq.py</em> Python module,
@@ -320,8 +319,21 @@ Unlike in the <em>alsaseq.py</em> Python module,
 the <em>start</em> element, when provided, is in floating-point seconds.</p>
 </dd>
 
+<dt><strong><a name="sysex" class="item">
+<em>sysex</em>( ch, string, start )</a></strong></dt>
+<dd>
+<p>Returns an ALSA-event-array to be sent by <a href="#output"><code>output()</code></a>.
+If <em>start</em> is not used, the event will be sent directly;
+if <em>start</em> is provided, the event will be scheduled in a queue. 
+The string should start with your Manufacturer ID,
+but should not contain any of the F0 or F7 bytes,
+they will be added automatically;
+indeed the string must not contain <I>any</I> bytes with the top-bit set.
+</p>
+</dd>
+
 <dt><strong><a name="alsa2scoreevent" class="item">
-<em>alsa2scoreevent</em>(alsaevent)</a></strong></dt>
+<em>alsa2scoreevent</em>( alsaevent )</a></strong></dt>
 <dd>
 <p>Returns an event in the millisecond-tick score-format used by the
 <A HREF="./MIDI.html">MIDI.lua</A> and
@@ -335,7 +347,7 @@ and not, for example, try to index it.</p>
 </dd>
 
 <dt><strong><a name="scoreevent2alsa" class="item">
-<em>scoreevent2alsa</em>(event)</a></strong></dt>
+<em>scoreevent2alsa</em>( scoreevent )</a></strong></dt>
 <dd><p>
 Returns an ALSA-event-array to be scheduled in a queue by
 <a href="#output"><code>output()</code></a>.
@@ -349,7 +361,7 @@ For example:<BR>
 <BR>
 Some events in a .mid file have no equivalent
 real-time-midi event, which is the sort that ALSA deals in;
-these events will cause <CODE>scoreevent2alsa()</CODE> to return <I>nil</I>;
+these events will cause <CODE>scoreevent2alsa()</CODE> to return <I>nil</I>.
 Therefore if you are going through the events in a midi score
 converting them with <CODE>scoreevent2alsa()</CODE>,
 you should check that the result is not <I>nil</I>
@@ -378,8 +390,10 @@ so if a client is running 4 ports they will be numbered 0..3<BR>
 <dd><p>
 Returns an array of three-element arrays
 <CODE>{&nbsp;{outputport,&nbsp;dest_client,&nbsp;dest_port},&nbsp;}</CODE>
-with the same data as might have been passed to connectto(),
-or which could be passed to disconnectto().
+with the same data as might have been passed to
+<CODE><A HREF="#connectto">connectto()</A></CODE>,
+or which could be passed to
+<CODE><A HREF="#disconnectto">disconnectto()</A></CODE>.
 </p></dd>
 
 <dt><strong><a name="listconnectedfrom" class="item">
@@ -387,8 +401,10 @@ or which could be passed to disconnectto().
 <dd><p>
 Returns an array of three-element arrays
 <CODE>{&nbsp;{inputport,&nbsp;src_client,&nbsp;src_port},&nbsp;}</CODE>
-with the same data as might have been passed to connectfrom(),
-or which could be passed to disconnectfrom().
+with the same data as might have been passed to
+<CODE><A HREF="#connectfrom">connectfrom()</A></CODE>,
+or which could be passed to
+<CODE><A HREF="#disconnectfrom">disconnectfrom()</A></CODE>.
 </p></dd>
 
 </dl>

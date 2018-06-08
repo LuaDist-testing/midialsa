@@ -93,19 +93,17 @@ static int c_status(lua_State *L) {
 	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	snd_seq_queue_status_t *queue_status;
 	int running, events;
-	const snd_seq_real_time_t *current_time;
+	const snd_seq_real_time_t *rt;
 	snd_seq_queue_status_malloc( &queue_status );
 	snd_seq_get_queue_status( seq_handle, queue_id, queue_status );
-	current_time = snd_seq_queue_status_get_real_time( queue_status );
-	running      = snd_seq_queue_status_get_status( queue_status );
-	events       = snd_seq_queue_status_get_events( queue_status );
-	snd_seq_queue_status_free( queue_status );
-	double sec   = current_time->tv_sec;
-	double nsec  = current_time->tv_nsec;
-	/* returns: running, time, events */
+	rt      = snd_seq_queue_status_get_real_time( queue_status );
+	running = snd_seq_queue_status_get_status( queue_status );
+	events  = snd_seq_queue_status_get_events( queue_status );
+	/* returns: running, time in floating-point seconds, events */
 	lua_pushboolean(L, running);
-	lua_pushnumber(L, sec + 1.0e-9*nsec);
+	lua_pushnumber(L, 1.0*rt->tv_sec + 1.0e-9*rt->tv_nsec);
 	lua_pushinteger(L, events);
+	snd_seq_queue_status_free( queue_status );
 	return 3;
 }
 

@@ -23,8 +23,11 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.04'
-M.VersionDate = '3mar2011'
+M.Version     = '1.09'
+M.VersionDate = '24jun2011'
+-- 20110624 1.09 maximum_nports increased from 4 to 64
+-- 20110428 1.06 fix bug in status() in the time return-value
+-- 20110323 1.05 controllerevent() 
 -- 20110303 1.04 output, input, *2alsa and alsa2* now handle sysex events
 -- 20110228 1.03 add listclients, listconnectedto and listconnectedfrom
 -- 20110213 1.02 add disconnectto and disconnectfrom
@@ -55,7 +58,7 @@ local function deepcopy(object)  -- http://lua-users.org/wiki/CopyTable
     end
     return _copy(object)
 end
-local  maximum_nports = 4
+local  maximum_nports = 64   -- 1.09
 
 ----------------- from Lua Programming Gems p. 331 ----------------
 local require, table = require, table -- save the used globals
@@ -168,16 +171,16 @@ function M.output(e)
     end
 
 end
-function M.start(queue)
+function M.start()
 	return prv.start()
 end
-function M.status(queue)
+function M.status()
 	return {prv.status()}
 end
-function M.stop(queue)
+function M.stop()
 	return prv.stop()
 end
-function M.syncoutput(queue)
+function M.syncoutput()
 	return prv.syncoutput()
 end
 
@@ -223,6 +226,18 @@ function M.pitchbendevent( ch, value, start )
         return { M.SND_SEQ_EVENT_PITCHBEND, M.SND_SEQ_TIME_STAMP_REAL,
         0, 0, start,
         { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
+	end
+end
+function M.controllerevent( ch, key, value, start ) -- 1.05
+    -- If start is not provided, the event will be sent directly.
+    if start == nil then
+        return { M.SND_SEQ_EVENT_CONTROLLER, M.SND_SEQ_TIME_STAMP_REAL,
+        0, M.SND_SEQ_QUEUE_DIRECT, 0,
+        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, key, value } }
+    else
+        return { M.SND_SEQ_EVENT_CONTROLLER, M.SND_SEQ_TIME_STAMP_REAL,
+        0, 0, start,
+        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, key, value } }
 	end
 end
 function M.chanpress( ch, value, start )
@@ -503,7 +518,7 @@ id(), input(), inputpending(), output(), start(), status(), stop(), syncoutput()
 
 Functions based on those in I<alsamidi.py>:
 noteevent(), noteonevent(), noteoffevent(), pgmchangeevent(),
-pitchbendevent(), chanpress(), sysex()
+pitchbendevent(), controllerevent(), chanpress(), sysex()
 
 Functions to interface with I<MIDI.lua>:
 alsa2scoreevent(), scoreevent2alsa()
@@ -515,11 +530,11 @@ listclients(), listnumports(), listconnectedto(), listconnectedfrom()
 
 =item I<client>(name, ninputports, noutputports, createqueue)
 
-Create an ALSA sequencer client with zero or more input or output ports,
-and optionally a timing queue.  ninputports and noutputports are created
-if the quantity requested is between 1 and 4 for each.
-If createqueue = true, it creates a queue for stamping the arrival time of
-incoming events and scheduling future start times of outgoing events.
+Create an ALSA sequencer client with zero or more input or output
+ports, and optionally a timing queue.  ninputports and noutputports
+are created if the quantity requested is between 1 and 64 for each.
+If createqueue = true, it creates a queue for stamping the arrival time
+of incoming events and scheduling future start times of outgoing events.
 
 Unlike in the I<alsaseq.py> Python module, it returns success or failure.
 
@@ -629,11 +644,11 @@ If the queue buffer is full, output() will wait
 until space is available to output the event.
 Use status() to know how many events are scheduled in the queue.
 
-=item I<start>(queue)
+=item I<start>()
 
 Start the queue. It is ignored if the client does not have a queue. 
 
-=item I<status>(queue)
+=item I<status>()
 
 Return { status, time, events } of the queue.
 
@@ -645,11 +660,11 @@ If the client does not have a queue the value {0,0,0} is returned.
 Unlike in the I<alsaseq.py> Python module,
 the I<time> element is in floating-point seconds.
 
-=item I<stop>(queue)
+=item I<stop>()
 
 Stop the queue. It is ignored if the client does not have a queue. 
 
-=item I<syncoutput>(queue)
+=item I<syncoutput>()
 
 Wait until output events are processed.
 
@@ -678,6 +693,15 @@ the I<start> element, when provided, is in floating-point seconds.
 =item I<pitchbendevent>( ch, value, start )
 
 Returns an ALSA-event-array to be sent by output().
+The value is from -8192 to 8191.
+If I<start> is not used, the event will be sent directly;
+if I<start> is provided, the event will be scheduled in a queue. 
+Unlike in the I<alsaseq.py> Python module,
+the I<start> element, when provided, is in floating-point seconds.
+
+=item I<controllerevent>( ch, controllernum, value, start )
+
+Returns an ALSA-event-array to be sent by output().
 If I<start> is not used, the event will be sent directly;
 if I<start> is provided, the event will be scheduled in a queue. 
 Unlike in the I<alsaseq.py> Python module,
@@ -701,7 +725,7 @@ but should not contain any of the F0 or F7 bytes,
 they will be added automatically;
 indeed the string must not contain any bytes with the top-bit set.
 
-=item I<alsa2scoreevent>(alsaevent)
+=item I<alsa2scoreevent>( alsaevent )
 
 Returns an event in the millisecond-tick score-format
 used by the I<MIDI.lua> and I<MIDI.py> modules,
@@ -713,7 +737,7 @@ it will return I<nil> when called with the I<note_on> event;
 the calling loop must therefore detect I<nil>
 and not, for example, try to index it.
 
-=item I<scoreevent2alsa>(event)
+=item I<scoreevent2alsa>( event )
 
 Returns an ALSA-event-array to be scheduled in a queue by output().
 The input is an event in the millisecond-tick score-format
@@ -774,7 +798,7 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.04-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.05-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
