@@ -915,7 +915,8 @@ http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 CHANGES
 
- 20121205 1.16 queue_id; test.lua prints better diagnostics; 5.2-compatible
+ 20121208 1.17 test script handles alsa_1.0.16 quirk
+ 20121205 1.16 queue_id; test script prints better diagnostics; 5.2-compatible
  20111112 1.15 (dis)?connect(from|to) return nil if parse_address fails
  20111112 1.14 but output() does broadcast if destination is self
  20111108 1.12 output() does not broadcast if destination is set

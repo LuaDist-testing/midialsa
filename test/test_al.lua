@@ -131,10 +131,11 @@ local alsaevent  = ALSA.input()
 correct = {11, 1, 0, 1, 300, {vm,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
 alsaevent[4] = 1
 alsaevent[5] = 300
--- print("alsaevent="..DataDumper(alsaevent));
--- print("correct="..DataDumper(correct));
-ok(equals(alsaevent, correct),
- 'input() returns {11,1,0,1,300,{vm,0},{id,1},{0,0,0,0,0,99}}')
+if not ok(equals(alsaevent, correct),
+ 'input() returns {11,1,0,1,300,{vm,0},{id,1},{0,0,0,0,0,99}}') then
+	print("# alsaevent="..DataDumper(alsaevent));
+	print("# correct="..DataDumper(correct));
+end
 local e = ALSA.alsa2scoreevent(alsaevent)
 correct = {'patch_change',300000,0,99}
 ok(equals(e, correct),
@@ -147,8 +148,11 @@ rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
 correct = {10, 1, 0, 1, 300, {vm,0}, {id,1}, {2, 0, 0, 0,10,103} }
 alsaevent[5] = 300
-ok(equals(alsaevent, correct),
- 'input() returns {10,1,0,1,300,{vm,0},{id,1},{2,0,0,0,10,103}}')
+if not ok(equals(alsaevent, correct),
+ 'input() returns {10,1,0,1,300,{vm,0},{id,1},{2,0,0,0,10,103}}') then
+	print("# alsaevent="..DataDumper(alsaevent));
+	print("# correct="..DataDumper(correct));
+end
 local e = ALSA.alsa2scoreevent(alsaevent)
 correct = {'control_change',300000,2,10,103}
 ok(equals(e, correct),
@@ -162,8 +166,11 @@ local save_time = alsaevent[5]
 correct = { 6, 1, 0, 1, 300, { vm, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
 alsaevent[5] = 300
 alsaevent[8][5] = 0
-ok(equals(alsaevent, correct),
- 'input() returns {6,1,0,1,300,{vm,0},{id,1},{0,60,101,0,0}}')
+if not ok(equals(alsaevent, correct),
+ 'input() returns {6,1,0,1,300,{vm,0},{id,1},{0,60,101,0,0}}') then
+	print("# alsaevent="..DataDumper(alsaevent));
+	print("# correct="..DataDumper(correct));
+end
 local scoreevent = ALSA.alsa2scoreevent(alsaevent)
 
 warn('# feeding ourselves a note_off event...')
@@ -181,8 +188,11 @@ scoreevent = ALSA.alsa2scoreevent(alsaevent)
 print("scoreevent="..DataDumper(scoreevent))
 scoreevent[2] = 300000
 correct = {'note',300000,1000,0,60,101}
-ok(equals(scoreevent, correct),
- 'alsa2scoreevent() returns {"note",300000,1000,0,60,101}')
+if not ok(equals(scoreevent, correct),
+ 'alsa2scoreevent() returns {"note",300000,1000,0,60,101}') then
+	print("# alsaevent="..DataDumper(alsaevent));
+	print("# correct="..DataDumper(correct));
+end
 
 warn("# feeding ourselves a sysex_f0 event...")
 assert(inp:write("\240}hello world\247"))
@@ -193,8 +203,11 @@ correct = {130, 5, 0, 1, 300, {vm,0}, {id,1},
      {"\240}hello world\247",nil,nil,nil,0} }
 alsaevent[5] = 300;
 alsaevent[8][5] = 0;
-ok(equals(alsaevent, correct),
- 'input() returns {130,5,0,1,300,{vm,0},{id,1},{"\\240}hello world\\247"}}');
+if not ok(equals(alsaevent, correct),
+ 'input() returns {130,5,0,1,300,{vm,0},{id,1},{"\\240}hello world\\247"}}') then
+	print("# alsaevent="..DataDumper(alsaevent));
+	print("# correct="..DataDumper(correct));
+end
 scoreevent = ALSA.alsa2scoreevent(alsaevent);
 scoreevent[2] = 300000;
 correct = {'sysex_f0',300000,"}hello world\247"}
@@ -238,10 +251,18 @@ ok(equals(bytes, string.char(8*16, 60,101)), 'note_off event detected')
 
 warn('# running  aconnect -d '..vm..' '..id..':1 ...')
 os.execute('aconnect -d '..vm..' '..id..':1')
-rc =  ALSA.inputpending()
-local alsaevent  = ALSA.input()
-ok(alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
- 'SND_SEQ_EVENT_PORT_UNSUBSCRIBED event received')
+for i=1,5 do  -- 1.17
+	rc =  ALSA.inputpending()
+	alsaevent  = ALSA.input()
+	if alsaevent[1] ~= ALSA.SND_SEQ_EVENT_SENSING then break end
+	local cl = table.concat(alsaevent[6],":")
+	print ("# discarding a SND_SEQ_EVENT_SENSING event from "..cl)
+end
+if not ok(alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
+ 'SND_SEQ_EVENT_PORT_UNSUBSCRIBED event received') then
+	print("# inputpending returned "..rc)
+	print("# alsaevent="..DataDumper(alsaevent));
+end
 
 rc = ALSA.disconnectto(2,21,0)
 ok(rc, "disconnectto(2,21,0)")
@@ -251,13 +272,20 @@ ok(rc, "connectto(2,'"..my_name..":1') connected to myself by name")
 
 correct = {11, 1, 0, 1, 2.5, {id,2}, {id,1}, {0, 0, 0, 0, 0, 99} }
 rc =  ALSA.output(correct)
-alsaevent  = ALSA.input()
--- print("alsaevent="..DataDumper(alsaevent));
--- print("correct="..DataDumper(correct));
+for i=1,5 do  -- 1.17
+	rc =  ALSA.inputpending()
+	alsaevent  = ALSA.input()
+	if alsaevent[1] ~= ALSA.SND_SEQ_EVENT_SENSING then break end
+	local cl = table.concat(alsaevent[6],":")
+	print ("# discarding a SND_SEQ_EVENT_SENSING event from "..cl)
+end
 
 latency = math.floor(0.5 + 1000 * (alsaevent[5]-correct[5]))
 alsaevent[5] = correct[5]
-ok(equals(alsaevent, correct), "received an event from myself")
+if not ok(equals(alsaevent, correct), "received an event from myself") then
+	print("# alsaevent="..DataDumper(alsaevent));
+	print("# correct="..DataDumper(correct));
+end
 ok(latency < 20, "latency was "..latency.." ms")
 
 rc =  ALSA.disconnectfrom(1,id,2)
@@ -272,7 +300,6 @@ ok(abs_error < 0.1, "status() reports time = "..a[2].." not 2.5");
 
 os.execute('sleep 1');
 a = ALSA.status();
-ok(a[1], 'status() reports running');
 abs_error = 3.5 - a[2]
 if abs_error < 0 then abs_error = 0-abs_error end
 ok(abs_error < 0.1, "status() reports time = "..a[2].." not 3.5");
