@@ -303,6 +303,11 @@ static int c_output(lua_State *L) {
 			ev.data.control.param     = lua_tointeger(L, 14);
 			ev.data.control.value     = lua_tointeger(L, 15);
 			break;
+
+		case SND_SEQ_EVENT_SYSEX: /* the calling args will need a string */
+			/* snd_seq_ev_set_variable ( ev, datalen, dataptr ) */
+			break;
+
 	}
 	/* If not a direct event, use the queue */
 	if ( ev.queue != SND_SEQ_QUEUE_DIRECT )
@@ -319,10 +324,84 @@ static int c_output(lua_State *L) {
 	return 1;
 }
 
+static int c_listclients(lua_State *L) {
+	/* stuff for version 1.03 - see aconnect.c
+	alsa-utils.sourcearchive.com/documentation/1.0.20/aconnect_8c-source.html 
+	*/
+	if (seq_handle == NULL) { return(0); }
+	lua_Integer getnumports = lua_tointeger(L, 1);
+	snd_seq_client_info_t *cinfo;
+	snd_seq_port_info_t *pinfo;
+	snd_seq_client_info_alloca(&cinfo);
+	snd_seq_port_info_alloca(&pinfo);
+	snd_seq_client_info_set_client(cinfo, -1);
+	unsigned int iST = 0;
+	while (snd_seq_query_next_client(seq_handle, cinfo) >= 0) {
+		/* reset query info */
+		snd_seq_port_info_set_client(pinfo,
+		  snd_seq_client_info_get_client(cinfo));
+		snd_seq_port_info_set_port(pinfo, -1);
+		lua_pushinteger(L, snd_seq_client_info_get_client(cinfo));
+		iST++;
+		if (getnumports) {
+	 		lua_pushinteger(L, snd_seq_client_info_get_num_ports(cinfo));
+		} else {
+			lua_pushstring(L, snd_seq_client_info_get_name(cinfo));
+		}
+		iST++;
+	}
+	return iST;
+}
+
+static int c_listconnections (lua_State *L) {
+	/* stuff for version 1.03 - see aconnect.c
+	alsa-utils.sourcearchive.com/documentation/1.0.20/aconnect_8c-source.html 
+	*/
+	if (seq_handle == NULL) { return(0); }
+	lua_Integer from      = lua_tointeger(L, 1);
+	snd_seq_client_info_t *cinfo;
+	snd_seq_port_info_t *pinfo;
+	snd_seq_query_subscribe_t *subs;
+	snd_seq_client_info_alloca(&cinfo);
+	snd_seq_port_info_alloca(&pinfo);
+	snd_seq_query_subscribe_alloca(&subs);
+	snd_seq_get_client_info(seq_handle, cinfo);
+	unsigned int iST = 0;
+	/* reset query info */
+	snd_seq_query_subscribe_set_type(subs,
+	  from ? SND_SEQ_QUERY_SUBS_WRITE : SND_SEQ_QUERY_SUBS_READ);
+	snd_seq_port_info_set_client(pinfo,
+	  snd_seq_client_info_get_client(cinfo));
+	snd_seq_port_info_set_port(pinfo, -1);
+	while (snd_seq_query_next_port(seq_handle, pinfo) >= 0) {
+		snd_seq_query_subscribe_set_root(subs,
+		  snd_seq_port_info_get_addr(pinfo));
+		snd_seq_query_subscribe_set_port(subs,
+		  snd_seq_port_info_get_addr(pinfo)->port);
+		snd_seq_query_subscribe_set_index(subs, 0);
+		/* At least, the client id, the port id, the index number
+		 and the query type must be set to perform a proper query. */
+		while (snd_seq_query_port_subscribers(seq_handle, subs) >= 0) {
+			const snd_seq_addr_t *addr;
+			addr = snd_seq_query_subscribe_get_addr(subs);
+			lua_pushinteger(L, snd_seq_port_info_get_addr(pinfo)->port);
+			iST++;
+			lua_pushinteger(L, addr->client);
+			iST++;
+			lua_pushinteger(L, addr->port);
+			iST++;
+			snd_seq_query_subscribe_set_index(subs,
+			  snd_seq_query_subscribe_get_index(subs) + 1);
+		}
+	}
+	return iST;
+}
+
+
 static int c_syncoutput(lua_State *L) {
 	if (seq_handle == NULL) { return(0); }
 	snd_seq_sync_output_queue( seq_handle );
-    return 0;
+	return 0;
 }
 
 struct constant {  /* Gems p. 334 */
@@ -400,6 +479,8 @@ static const luaL_Reg prv[] = {  /* private functions */
 	{"connectto",       c_connectto},
 	{"disconnectfrom",  c_disconnectfrom},
 	{"disconnectto",    c_disconnectto},
+	{"listclients",     c_listclients},
+	{"listconnections", c_listconnections},
 	{"start",           c_start},
 	{"status",          c_status},
 	{"stop",            c_stop},

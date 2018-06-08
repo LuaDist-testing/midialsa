@@ -100,6 +100,11 @@ call-compatible Perl CPAN module:
 <a href="#alsa2scoreevent"><B>alsa2scoreevent()</B></A>,
 <a href="#scoreevent2alsa"><B>scoreevent2alsa()</B></A>,
 <a href="#rawevent2alsa"><B>rawevent2alsa()</B></A></p>
+<p>Functions to to get the current ALSA status:
+<a href="#listclients"><B>listclients()</B></A>,
+<a href="#listnumports"><B>listnumports()</B></A>,
+<a href="#listconnectedto"><B>listconnectedto()</B></A>,
+<a href="#listconnectedfrom"><B>listconnectedfrom()</B></A></p>
 <dl>
 
 <dt><strong><a name="client" class="item">
@@ -333,8 +338,8 @@ and not, for example, try to index it.</p>
 
 <dt><strong><a name="scoreevent2alsa" class="item">
 <em>scoreevent2alsa</em>(event)</a></strong></dt>
-<dd>
-<p>Returns an ALSA-event-array to be scheduled in a queue by
+<dd><p>
+Returns an ALSA-event-array to be scheduled in a queue by
 <a href="#output"><code>output()</code></a>.
 The input is an event in the millisecond-tick score-format
 used by the <em>MIDI.lua</em> and <em>MIDI.py</em> modules,
@@ -342,14 +347,52 @@ based on the score-format in Sean Burke's MIDI-Perl CPAN module. See:
 <a href="http://www.pjb.com.au/comp/lua/MIDI.html#events">
 http://www.pjb.com.au/comp/lua/MIDI.html#events</a>
 For example:<BR>
- <CODE>ALSA.output(ALSA.scoreevent2alsa{'note',4000,1000,0,62,110})</CODE></p>
-</dd>
+ <CODE>ALSA.output(ALSA.scoreevent2alsa{'note',4000,1000,0,62,110})</CODE>
+</p></dd>
 
-<dt><strong><a name="rawevent2alsa" class="item"><em>rawevent2alsa</em>()</a></strong></dt>
+<dt><strong><a name="rawevent2alsa" class="item">
+<em>rawevent2alsa</em>()</a></strong></dt>
+<dd><p>
+Unimplemented
+</p></dd>
+
+<dt><strong><a name="listclients" class="item">
+<em>listclients</em>()</a></strong></dt>
 <dd>
-<p>Unimplemented</p>
-</dd>
+<p>Returns a table with the client-numbers as key
+and the descriptive strings of the ALSA client as value :<BR>
+ <CODE>local clientnumber2clientname = ALSA.listclients()</CODE>
+</p></dd>
+
+<dt><strong><a name="listnumports" class="item">
+<em>listnumports</em>()</a></strong></dt>
+<dd><p>
+Returns a table with the client-numbers as key
+and how many ports they are running as value,
+so if a client is running 4 ports they will be numbered 0..3<BR>
+ <CODE>local clientnumber2howmanyports = ALSA.listnumports()</CODE>
+</p></dd>
+
+<dt><strong><a name="listconnectedto" class="item">
+<em>listconnectedto</em>()</a></strong></dt>
+<dd><p>
+Returns an array of three-element arrays
+<CODE>{&nbsp;{outputport,&nbsp;dest_client,&nbsp;dest_port},&nbsp;}</CODE>
+with the same data as might have been passed to connectto(),
+or which could be passed to disconnectto().
+</p></dd>
+
+<dt><strong><a name="listconnectedfrom" class="item">
+<em>listconnectedfrom</em>()</a></strong></dt>
+<dd><p>
+Returns an array of three-element arrays
+<CODE>{&nbsp;{inputport,&nbsp;src_client,&nbsp;src_port},&nbsp;}</CODE>
+with the same data as might have been passed to connectfrom(),
+or which could be passed to disconnectfrom().
+</p></dd>
+
 </dl>
+
 <p>
 </p>
 <hr />
@@ -363,16 +406,12 @@ so you should be able to install it with the command:</p>
  # luarocks install midialsa</pre>
 <p>or:</p>
 <pre>
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.02-0.rockspec</a></pre>
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.03-0.rockspec</a></pre>
 <p>
 </p>
 <hr />
 <h2><a name="to_do">TO DO</a></h2>
-<p>There should be a way of checking the current
-status of a connection, like <code>isconnectedto()</code> and
-<code>isconnectedfrom()</code> or something, so that if a
-connection has vanished the application can handle it gracefully.
-</p><p>
+<p>
 Perhaps there should be a general <code>connect_between()</code> mechanism,
 allowing the interconnection of two other clients,
 a bit like <em>aconnect 32 20</em>
@@ -380,8 +419,12 @@ a bit like <em>aconnect 32 20</em>
 If an event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
 then the remote client and port seem to be zeroed-out,
 which makes it hard to know which client has disconnected.
-<p><a href="#output"><code>output()</code></a> and <a href="#input"><code>input()</code></a> seem to filter out all non-sounding events,
-like text_events and sysex; this ought to be adjustable.</p>
+</p><p>
+ALSA does not transmit Meta-Events like <I>text_event</I>,
+which is sad, but there's not much can be done about it. Worse:
+<a href="#output"><code>output()</code></a> and
+ <a href="#input"><code>input()</code></a>
+do not handle <I>sysex</I> events, which they should.</p>
 <p>
 </p>
 <hr />
@@ -404,6 +447,8 @@ like text_events and sysex; this ought to be adjustable.</p>
  <a href="http://alsa-project.org/alsa-doc/alsa-lib/structsnd__seq__ev__ctrl.html">http://alsa-project.org/alsa-doc/alsa-lib/structsnd__seq__ev__ctrl.html</a>
  <a href="http://alsa-project.org/alsa-doc/alsa-lib/structsnd__seq__ev__queue__control.html">http://alsa-project.org/alsa-doc/alsa-lib/structsnd__seq__ev__queue__control.html</a>
  <a href="http://alsa-project.org/alsa-doc/alsa-lib/group___seq_client.html">http://alsa-project.org/alsa-doc/alsa-lib/group___seq_client.html</a>
+ <a href="http://alsa-utils.sourcearchive.com/documentation/1.0.20/aconnect_8c-source.html">http://alsa-utils.sourcearchive.com/documentation/1.0.20/aconnect_8c-source.html</a>
+ <a href="http://alsa-utils.sourcearchive.com/documentation/1.0.8/aplaymidi_8c-source.html">http://alsa-utils.sourcearchive.com/documentation/1.0.8/aplaymidi_8c-source.html</a>
  snd_seq_client_info_event_filter_clear
  snd_seq_get_any_client_info
  snd_seq_get_client_info

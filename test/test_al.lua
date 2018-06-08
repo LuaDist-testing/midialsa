@@ -87,6 +87,12 @@ ok(fd > 0, 'fd()')
 id = ALSA.id()
 ok(id > 0, 'id() returns '..id)
 
+num2name = ALSA.listclients();
+ok(num2name[id] == 'test_a.lua', "listclients()");
+
+num2nports = ALSA.listnumports();
+ok(num2nports[id] == 4, "listnumports()");
+
 local inp = assert(io.open('/dev/snd/midiC2D0','wb'))  -- client 24
 local oup = assert(io.open('/dev/snd/midiC2D1','rb'))  -- client 25
 
@@ -155,6 +161,16 @@ correct = {'note_off',300000,0,60,101}
 ok(equals(opusevent, correct),
  'alsa2opusevent() returns {"note_off",300000,0,60,101}')
 
+to = ALSA.listconnectedto()
+correct = {{2,25,0},}
+--print('to='..DataDumper(to))
+ok(equals(to, correct), "listconnectedto() returns {{2,25,0}}")
+from = ALSA.listconnectedfrom()
+correct = {{1,24,0},}
+--print('from='..DataDumper(from))
+ok(equals(from, correct), "listconnectedfrom() returns {{1,24,0}}")
+
+
 warn('# outputting a patch_change event...')
 correct = {11, 1, 0, 1, 0.5, {24,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
 rc =  ALSA.output(correct)
@@ -187,8 +203,8 @@ local alsaevent  = ALSA.input()
 ok(alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
  'SND_SEQ_EVENT_PORT_UNSUBSCRIBED event received')
 
-rc = ALSA.disconnectto(2,25,0);
-ok(rc, "disconnectto(2,25,0)");
+rc = ALSA.disconnectto(2,25,0)
+ok(rc, "disconnectto(2,25,0)")
 
 rc = ALSA.connectto(2,id,1)
 ok(rc, "connectto(2,"..id..",1) connected to myself")
@@ -198,55 +214,55 @@ alsaevent  = ALSA.input()
 latency = math.floor(0.5 + 1000 * (alsaevent[5]-correct[5]))
 alsaevent[5] = correct[5]
 ok(equals(alsaevent, correct), "received an event from myself")
-ok(latency < 20, "latency was "..latency.." ms");
+ok(latency < 20, "latency was "..latency.." ms")
 
 rc =  ALSA.disconnectfrom(1,id,2)
-ok(rc, "disconnectfrom(1,"..id..",2)");
+ok(rc, "disconnectfrom(1,"..id..",2)")
 
-alsaevent = ALSA.noteonevent(15, 72, 100, 2.7);
-opusevent = ALSA.alsa2opusevent(alsaevent);
-correct = {'note_on',0,15,72,100};
-ok(equals(opusevent, correct), 'noteonevent()');
+alsaevent = ALSA.noteonevent(15, 72, 100, 2.7)
+opusevent = ALSA.alsa2opusevent(alsaevent)
+correct = {'note_on',0,15,72,100}
+ok(equals(opusevent, correct), 'noteonevent()')
 
-alsaevent = ALSA.noteoffevent(15, 72, 100, 2.7);
-opusevent = ALSA.alsa2opusevent(alsaevent);
-correct = {'note_off',0,15,72,100};
-ok(equals(opusevent, correct), 'noteoffevent()');
+alsaevent = ALSA.noteoffevent(15, 72, 100, 2.7)
+opusevent = ALSA.alsa2opusevent(alsaevent)
+correct = {'note_off',0,15,72,100}
+ok(equals(opusevent, correct), 'noteoffevent()')
 
-alsaevent  = ALSA.noteevent(15, 72, 100, 2.7, 3.1);
-scoreevent = ALSA.alsa2scoreevent(alsaevent);
-correct = {'note',2700,3100,15,72,100};
-ok(equals(scoreevent, correct), 'noteevent()');
+alsaevent  = ALSA.noteevent(15, 72, 100, 2.7, 3.1)
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
+correct = {'note',2700,3100,15,72,100}
+ok(equals(scoreevent, correct), 'noteevent()')
 
-alsaevent = ALSA.pgmchangeevent(11, 98, 2.7);
-scoreevent = ALSA.alsa2scoreevent(alsaevent);
-correct = {'patch_change',2700,11,98};
-ok(equals(scoreevent, correct), 'pgmchangeevent() with time>=0');
+alsaevent = ALSA.pgmchangeevent(11, 98, 2.7)
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
+correct = {'patch_change',2700,11,98}
+ok(equals(scoreevent, correct), 'pgmchangeevent() with time>=0')
 
-alsaevent = ALSA.pgmchangeevent(11, 98);
-opusevent = ALSA.alsa2opusevent(alsaevent);
-correct = {'patch_change',0,11,98};
-ok(equals(opusevent, correct), 'pgmchangeevent() with time undefined');
+alsaevent = ALSA.pgmchangeevent(11, 98)
+opusevent = ALSA.alsa2opusevent(alsaevent)
+correct = {'patch_change',0,11,98}
+ok(equals(opusevent, correct), 'pgmchangeevent() with time undefined')
 
-alsaevent = ALSA.pitchbendevent(11, 98, 2.7);
-scoreevent = ALSA.alsa2scoreevent(alsaevent);
-correct = {'pitch_wheel_change',2700,11,98};
-ok(equals(scoreevent, correct), 'pitchbendevent() with time>=0');
+alsaevent = ALSA.pitchbendevent(11, 98, 2.7)
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
+correct = {'pitch_wheel_change',2700,11,98}
+ok(equals(scoreevent, correct), 'pitchbendevent() with time>=0')
 
-alsaevent = ALSA.pitchbendevent(11, 98);
-opusevent = ALSA.alsa2opusevent(alsaevent);
-correct = {'pitch_wheel_change',0,11,98};
-ok(equals(opusevent, correct), 'pitchbendevent() with time undefined');
+alsaevent = ALSA.pitchbendevent(11, 98)
+opusevent = ALSA.alsa2opusevent(alsaevent)
+correct = {'pitch_wheel_change',0,11,98}
+ok(equals(opusevent, correct), 'pitchbendevent() with time undefined')
 
-alsaevent = ALSA.chanpress(11, 98, 2.7);
-scoreevent = ALSA.alsa2scoreevent(alsaevent);
-correct = {'channel_after_touch',2700,11,98};
-ok(equals(scoreevent, correct), 'chanpress() with time>=0');
+alsaevent = ALSA.chanpress(11, 98, 2.7)
+scoreevent = ALSA.alsa2scoreevent(alsaevent)
+correct = {'channel_after_touch',2700,11,98}
+ok(equals(scoreevent, correct), 'chanpress() with time>=0')
 
-alsaevent = ALSA.chanpress(11, 98);
-opusevent = ALSA.alsa2opusevent(alsaevent);
-correct = {'channel_after_touch',0,11,98};
-ok(equals(opusevent, correct), 'chanpress() with time undefined');
+alsaevent = ALSA.chanpress(11, 98)
+opusevent = ALSA.alsa2opusevent(alsaevent)
+correct = {'channel_after_touch',0,11,98}
+ok(equals(opusevent, correct), 'chanpress() with time undefined')
 
 rc = ALSA.stop()
 ok(rc,'stop() returns success')

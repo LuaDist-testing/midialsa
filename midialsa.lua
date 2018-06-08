@@ -16,7 +16,7 @@
 -- ALSA.client( 'Lua client', 1, 1, false )
 -- ALSA.connectto( 0, 129, 0 )
 -- ALSA.connectfrom( 1, 130, 0 )
--- while true then
+-- while true do
 --     local alsaevent = ALSA.input()
 --     if alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then break end
 --     ALSA.output( alsaevent )
@@ -309,7 +309,66 @@ end
 function M.rawevent2alsa()
 end
 
--- could make M readOnly ?
+---------- public functions to get the current ALSA status  -----------
+function M.listclients()
+	local flat = {prv.listclients(0)}
+	local ifl = 1
+	local hash = {}
+	while ifl < #flat do
+		hash[flat[ifl]] = flat[ifl+1]
+		ifl = ifl + 2
+	end
+	return hash
+end
+
+function M.listnumports()
+	local flat = {prv.listclients(1)}
+	local ifl = 1
+	local hash = {}
+	while ifl < #flat do
+		hash[flat[ifl]] = flat[ifl+1]
+		ifl = ifl + 2
+	end
+	return hash
+end
+
+function M.listconnectedto()
+    local flat = {prv.listconnections(0)}
+    local lol  = {}
+	local ifl = 1
+	local ilol = 1
+    while ifl < #flat do
+		lol[ilol] = {}
+        table.insert(lol[ilol], flat[ifl])
+		ifl = ifl + 1
+        table.insert(lol[ilol], flat[ifl])
+		ifl = ifl + 1
+        table.insert(lol[ilol], flat[ifl])
+		ifl = ifl + 1
+        ilol = ilol+ 1
+    end
+    return lol
+end
+
+function M.listconnectedfrom()
+    local flat = {prv.listconnections(1)}
+    local lol  = {}
+	local ifl = 1
+	local ilol = 1
+    while ifl < #flat do
+		lol[ilol] = {}
+        table.insert(lol[ilol], flat[ifl])
+		ifl = ifl + 1
+        table.insert(lol[ilol], flat[ifl])
+		ifl = ifl + 1
+        table.insert(lol[ilol], flat[ifl])
+		ifl = ifl + 1
+        ilol = ilol+ 1
+    end
+    return lol
+end
+
+-- make M readOnly, very classy...
 local readonly_proxy = {}
 local mt = { -- create metatable, see Programming in Lua p.127
 	__index = M,
@@ -318,7 +377,6 @@ local mt = { -- create metatable, see Programming in Lua p.127
 	end
 }
 setmetatable(readonly_proxy, mt)
--- return M
 return readonly_proxy
 
 --[=[
@@ -335,7 +393,7 @@ midialsa.lua - the ALSA library, plus some interface functions
  ALSA.client( 'Lua client', 1, 1, false )
  ALSA.connectto( 0, 20, 0 )
  ALSA.connectfrom( 1, 14, 0 )
- while true then
+ while true do
      local alsaevent = ALSA.input()
      if alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then break end
      ALSA.output( alsaevent )
@@ -367,6 +425,9 @@ pitchbendevent(), chanpress()
 
 Functions to interface with I<MIDI.lua>:
 alsa2opusevent(), alsa2scoreevent(), scoreevent2alsa(), rawevent2alsa()
+
+Functions to get the current ALSA status:
+listclients(), listnumports(), listconnectedto(), listconnectedfrom()
 
 =over 3
 
@@ -574,6 +635,35 @@ For example:
 
 Unimplemented
 
+=item listclients()
+
+Returns a table with the client-numbers as key
+and the descriptive strings of the ALSA client as value :
+
+ local clientnumber2clientname = ALSA.listclients()
+
+=item listnumports()
+
+Returns a table with the client-numbers as key
+and how many ports they are running as value,
+so if a client is running 4 ports they will be numbered 0..3
+
+ local clientnumber2howmanyports = ALSA.listnumports()
+
+=item listconnectedto()
+
+Returns an array of three-element arrays
+{ {outputport, dest_client, dest_port}, }
+with the same data as might have been passed to connectto(),
+or which could be passed to disconnectto().
+
+=item listconnectedfrom()
+
+Returns an array of three-element arrays
+{ {inputport, src_client, src_port}, }
+with the same data as might have been passed to connectfrom(),
+or which could be passed to disconnectfrom().
+
 =back
 
 =head1 DOWNLOAD
@@ -588,32 +678,24 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.01-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.03-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 TO DO
 
-There should be a way of checking the current status of a connection,
-like isconnectedto() and isconnectedfrom() or something,
-so that if a connection has vanished the application can handle it gracefully.
-
 Perhaps there should be a general connect_between() mechanism,
 allowing the interconnection of two other clients,
 a bit like I<aconnect 32 20>
 
-There should be a way of getting the textual information
-about the various clients, like "TiMidity" or
-"Roland XV-2020" or "Virtual Raw MIDI 2-0" and so on.
-
 If an event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
 then the remote client and port seem to be zeroed-out,
-which makes it hard to know which client has disconnected.
+which makes it hard to know which client has just disconnected.
 
-output() and input() seem to filter out all non-sounding events,
-like text_events and sysex; this ought to be adjustable.
- int snd_seq_set_client_event_filter (snd_seq_t * seq, int event_type) 	
+ALSA does not transmit Meta-Events like I<text_event>, which is sad,
+but there's not much can be done about it.
+Worse: output() and input() do not handle sysex events, which they should.
 
 =head1 AUTHOR
 
@@ -633,6 +715,8 @@ Peter J Billam, http://www.pjb.com.au/comp/contact.html
  http://alsa-project.org/alsa-doc/alsa-lib/structsnd__seq__ev__ctrl.html
  http://alsa-project.org/alsa-doc/alsa-lib/structsnd__seq__ev__queue__control.html
  http://alsa-project.org/alsa-doc/alsa-lib/group___seq_client.html
+ http://alsa-utils.sourcearchive.com/documentation/1.0.20/aconnect_8c-source.html 
+ http://alsa-utils.sourcearchive.com/documentation/1.0.8/aplaymidi_8c-source.html
  snd_seq_client_info_event_filter_clear
  snd_seq_get_any_client_info
  snd_seq_get_client_info
