@@ -16,15 +16,19 @@
 -- ALSA.client( 'Lua client', 1, 1, false )
 -- ALSA.connectto( 0, 129, 0 )
 -- ALSA.connectfrom( 1, 130, 0 )
--- if ALSA.inputpending() then
+-- while true then
 --     local alsaevent = ALSA.input()
+--     if alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then break end
 --     ALSA.output( alsaevent )
 -- end
 
-
 local M = {} -- public interface
-M.Version = '1.0'
-M.VersionDate = '29jan2011'
+M.Version = '1.02'
+M.VersionDate = '13feb2011'
+-- 20110213 1.02 add disconnectto and disconnectfrom
+-- 20110210 1.01 output() no longer floors the time to the nearest second
+-- 20110209 1.01 pitchbendevent() and chanpress() return correct data
+-- 20110129 1.00 first working version
 
 ------------------------------ private ------------------------------
 local function warn(str) io.stderr:write(str,'\n') end
@@ -75,6 +79,12 @@ function M.connectfrom( inputport, src_client, src_port )
 end
 function M.connectto( outputport, dest_client, dest_port )
 	return prv.connectto( outputport, dest_client, dest_port )
+end
+function M.disconnectfrom( inputport, src_client, src_port )
+	return prv.disconnectfrom( inputport, src_client, src_port )
+end
+function M.disconnectto( outputport, dest_client, dest_port )
+	return prv.disconnectto( outputport, dest_client, dest_port )
 end
 function M.fd()
 	return prv.fd()
@@ -151,11 +161,11 @@ function M.pitchbendevent( ch, value, start )
     if start == nil then
         return { M.SND_SEQ_EVENT_PITCHBEND, M.SND_SEQ_TIME_STAMP_REAL,
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
-        { 0,0 }, { 0,0 }, { ch, 0, value } }
+        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
     else
         return { M.SND_SEQ_EVENT_PITCHBEND, M.SND_SEQ_TIME_STAMP_REAL,
         0, 0, start,
-        { 0,0 }, { 0,0 }, { ch, 0, value } }
+        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
 	end
 end
 function M.chanpress( ch, value, start )
@@ -163,11 +173,11 @@ function M.chanpress( ch, value, start )
     if start == nil then
         return { M.SND_SEQ_EVENT_CHANPRESS, M.SND_SEQ_TIME_STAMP_REAL,
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
-        { 0,0 }, { 0,0 }, { ch, 0, value } }
+        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
     else
         return { M.SND_SEQ_EVENT_CHANPRESS, M.SND_SEQ_TIME_STAMP_REAL,
         0, 0, start,
-        { 0,0 }, { 0,0 }, { ch, 0, value } }
+        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
 	end
 end
 ------------- public functions to handle MIDI.lua events  -------------
@@ -191,8 +201,9 @@ function M.alsa2opusevent(alsaevent, want_score)
 		ticks_so_far = new_ticks
 	end
 	local data = alsaevent[8]  -- deepcopy?
+	-- snd_seq_ev_note_t: channel, note, velocity, off_velocity, duration
 	if alsaevent[1] == M.SND_SEQ_EVENT_NOTE then
-		return { 'note',ticks,data[1],data[2],data[3],data[4] }
+		return { 'note',ticks,data[5],data[1],data[2],data[3] } -- 1.01
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_NOTEOFF
 	 or (alsaevent[1] == M.SND_SEQ_EVENT_NOTEON and data[3] == 0) then
 		if want_score then
@@ -236,6 +247,8 @@ function M.alsa2opusevent(alsaevent, want_score)
 		return { 'patch_change',ticks,data[1],data[6] }
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_PITCHBEND then
 		return { 'pitch_wheel_change',ticks,data[1],data[6] }
+	elseif alsaevent[1] == M.SND_SEQ_EVENT_CHANPRESS then
+		return { 'channel_after_touch',ticks,data[1],data[6] }
 	else
 		warn(function_name..': unsupported event-type '..alsaevent[1])
 		return nil
@@ -322,9 +335,11 @@ midialsa.lua - the ALSA library, plus some interface functions
  ALSA.client( 'Lua client', 1, 1, false )
  ALSA.connectto( 0, 20, 0 )
  ALSA.connectfrom( 1, 14, 0 )
- if ALSA.inputpending() then
+ while true then
      local alsaevent = ALSA.input()
+     if alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED then break end
      ALSA.output( alsaevent )
+ end
 
 
 =head1 DESCRIPTION
@@ -333,10 +348,12 @@ This module offers a Lua interface to the I<ALSA> library.
 It translates into Lua the Python modules
 I<alsaseq.py> and I<alsamidi.py> by Patricio Paez;
 it also offers some functions to translate events from and to
-the format used in Peter Billam's MIDI.lua Lua module.
+the format used in Peter Billam's MIDI.lua Lua module
+and Sean Burke's MIDI-Perl CPAN module.
 
-It is hoped that this module will soon be translated also into a
-call-compatible Perl CPAN module, probably MIDI::ALSA
+This module is in turn translated also into a
+call-compatible Perl CPAN module:
+I<MIDI::ALSA> http://search.cpan.org/~pjb
 
 =head1 FUNCTIONS
 
@@ -380,6 +397,18 @@ the output()  funtion will be sent to all clients that are connected to
 it using this function.
 
 Unlike in the I<alsaseq.py> Python module, it returns success or failure.
+
+=item I<disconnectfrom>( inputport, src_client, src_port )
+
+Disconnect the connection
+from the remote I<src_client:src_port> to my I<inputport>.
+Returns success or failure.
+
+=item I<disconnectto>( outputport, dest_client, dest_port )
+
+Disconnect the connection
+from my I<outputport> to the remote I<dest_client:dest_port>.
+Returns success or failure.
 
 =item I<fd>()
 
@@ -536,9 +565,9 @@ Returns an ALSA-event-array to be scheduled in a queue by output().
 The input is an event in the millisecond-tick score-format
 used by the I<MIDI.lua> and I<MIDI.py> modules,
 based on the score-format in Sean Burke's MIDI-Perl CPAN module. See:
- http://www.pjb.com.au/comp/lua/MIDI.html#events
-
+http://www.pjb.com.au/comp/lua/MIDI.html#events 
 For example:
+
  ALSA.output(ALSA.scoreevent2alsa{'note',4000,1000,0,62,110})
 
 =item I<rawevent2alsa>()
@@ -559,27 +588,32 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.00-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.01-0.rockspec
+
+The Perl version is available from CPAN at
+http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 TO DO
 
-Certainly there should be a way of checking the current status
-of a connection,
-like is_still_connectedto() and is_still_connectedfrom()
-or something, so that if a connection has vanished the application
-can handle it gracefully.
-
-Probably there should be disconnectto() and disconnectfrom()
+There should be a way of checking the current status of a connection,
+like isconnectedto() and isconnectedfrom() or something,
+so that if a connection has vanished the application can handle it gracefully.
 
 Perhaps there should be a general connect_between() mechanism,
 allowing the interconnection of two other clients,
 a bit like I<aconnect 32 20>
 
+There should be a way of getting the textual information
+about the various clients, like "TiMidity" or
+"Roland XV-2020" or "Virtual Raw MIDI 2-0" and so on.
+
 If an event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
-then the remote client and port do not seem to be correct.
+then the remote client and port seem to be zeroed-out,
+which makes it hard to know which client has disconnected.
 
 output() and input() seem to filter out all non-sounding events,
 like text_events and sysex; this ought to be adjustable.
+ int snd_seq_set_client_event_filter (snd_seq_t * seq, int event_type) 	
 
 =head1 AUTHOR
 
@@ -589,6 +623,7 @@ Peter J Billam, http://www.pjb.com.au/comp/contact.html
 
  aconnect -oil
  http://pp.com.mx/python/alsaseq
+ http://search.cpan.org/perldoc?MIDI::ALSA
  http://www.pjb.com.au/comp/lua/midialsa.html
  http://luarocks.org/repositories/rocks/index.html#midialsa
  http://www.pjb.com.au/comp/lua/MIDI.html

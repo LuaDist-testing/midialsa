@@ -1,16 +1,16 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "midialsa"
-version = "1.00-1"
+version = "1.02-1"
 -- LuaDist source
 source = {
-  tag = "1.00-1",
+  tag = "1.02-1",
   url = "git://github.com/LuaDist-testing/midialsa.git"
 }
 -- Original source
 -- source = {
---    url = "http://www.pjb.com.au/comp/lua/midialsa-1.00.tar.gz",
---    md5 = "f8f42193380ddb5f8462c9a3ee948c6c"
+--    url = "http://www.pjb.com.au/comp/lua/midialsa-1.02.tar.gz",
+--    md5 = "5701688a6e55842e94a37ecc14679d9c"
 -- }
 description = {
    summary = "Provides access to the ALSA sequencer",
@@ -18,7 +18,8 @@ description = {
       This is a call-compatible translation into Lua of the Python
       module alsaseq.py by Patricio Paez. It gives access to the ALSA
       library, offering functions client, connectfrom, connectto, fd, id,
-      input, inputpending, output, start, status, stop and syncoutput 
+      input, inputpending, output, start, status, stop and syncoutput,
+      plus some functions to interface with the MIDI.lua module.
    ]],
    homepage = "http://www.pjb.com.au/comp/lua/midialsa.html",
    license = "MIT/X11"
@@ -28,7 +29,7 @@ dependencies = {
 }
 external_dependencies = {
    ALSA = {
-      header = "alsa/asoundlib.h",
+      header  = "alsa/asoundlib.h",
       library = "asound",
    }
 }

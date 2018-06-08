@@ -40,7 +40,7 @@ local function deepcopy(object)  -- http://lua-users.org/wiki/CopyTable
     return _copy(object)
 end
 
-local Test = 20 ; local i_test = 0; local Failed = 0;
+local Test = 24 ; local i_test = 0; local Failed = 0;
 function ok(b,s)
     i_test = i_test + 1
     if b then
@@ -61,7 +61,7 @@ warn('# This test script is not very portable: it depends')
 warn('# on virmidi ports on 24:0 and 25:0, for example...')
 
 rc = ALSA.inputpending()
-ok(rc==0, "inputpending() with no client returned "..tostring(rc))
+ok(not rc, "inputpending() with no client returned "..tostring(rc))
 
 rc = ALSA.client('test_a.lua',2,2,1)
 ok(rc, "client('test_a.lua',2,2,1)")
@@ -98,10 +98,12 @@ ok(rc > 0, 'inputpending() returns '..rc)
 local alsaevent  = ALSA.input()
 correct = {11, 1, 0, 1, 300, {24,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
 alsaevent[5] = 300
-ok(equals(alsaevent, correct), 'input() returns {11,1,0,1,300,{24,0},{id,1},{0,0,0,0,0,99}}')
+ok(equals(alsaevent, correct),
+ 'input() returns {11,1,0,1,300,{24,0},{id,1},{0,0,0,0,0,99}}')
 local e = ALSA.alsa2scoreevent(alsaevent)
 correct = {'patch_change',300000,0,99}
-ok(equals(e, correct), 'alsa2scoreevent() returns {"patch_change",300000,0,99}')
+ok(equals(e, correct),
+ 'alsa2scoreevent() returns {"patch_change",300000,0,99}')
 
 warn('# feeding ourselves a control_change event...')
 assert(inp:write(string.char(11*16+2,10,103))) -- {'control_change',3,2,10,103}
@@ -110,10 +112,12 @@ rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
 correct = {10, 1, 0, 1, 300, {24,0}, {id,1}, {2, 0, 0, 0,10,103} }
 alsaevent[5] = 300
-ok(equals(alsaevent, correct), 'input() returns {10,1,0,1,300,{24,0},{id,1},{2,0,0,0,10,103}}')
+ok(equals(alsaevent, correct),
+ 'input() returns {10,1,0,1,300,{24,0},{id,1},{2,0,0,0,10,103}}')
 local e = ALSA.alsa2scoreevent(alsaevent)
 correct = {'control_change',300000,2,10,103}
-ok(equals(e, correct), 'alsa2scoreevent() returns {"control_change",300000,2,10,103}')
+ok(equals(e, correct),
+ 'alsa2scoreevent() returns {"control_change",300000,2,10,103}')
 
 warn('# feeding ourselves a note_on event...')
 assert(inp:write(string.char(9*16, 60,101))) -- {'note_on',0,60,101}
@@ -124,11 +128,13 @@ local save_time = alsaevent[5]
 correct = { 6, 1, 0, 1, 300, { 24, 0 }, { 129, 1 }, { 0, 60, 101, 0, 0 } }
 alsaevent[5] = 300
 alsaevent[8][5] = 0
-ok(equals(alsaevent, correct), 'input() returns {6,1,0,1,300,{24,0},{id,1},{0,60,101,0,0}}')
+ok(equals(alsaevent, correct),
+ 'input() returns {6,1,0,1,300,{24,0},{id,1},{0,60,101,0,0}}')
 local opusevent = ALSA.alsa2opusevent(alsaevent)
 opusevent[2] = 300000
 correct = {'note_on',300000,0,60,101}
-ok(equals(opusevent, correct), 'alsa2opusevent() returns {"note_on",300000,0,60,101}')
+ok(equals(opusevent, correct),
+ 'alsa2opusevent() returns {"note_on",300000,0,60,101}')
 
 warn('# feeding ourselves a note_off event...')
 assert(inp:write(string.char(8*16, 60,101))) -- {'note_off',0,60,101}
@@ -139,13 +145,15 @@ local save_time = alsaevent[5]
 correct = { 7, 1, 0, 1, 300, { 24, 0 }, { 129, 1 }, { 0, 60, 101, 0, 0 } }
 alsaevent[5] = 300
 alsaevent[8][5] = 0
-ok(equals(alsaevent, correct), 'input() returns {7,1,0,1,300,{24,0},{id,1},{0,60,101,0,0}}')
+ok(equals(alsaevent, correct),
+ 'input() returns {7,1,0,1,300,{24,0},{id,1},{0,60,101,0,0}}')
 --print('alsaevent='..DataDumper(alsaevent))
 local opusevent = ALSA.alsa2opusevent(alsaevent)
 --print('opusevent='..DataDumper(opusevent))
 opusevent[2] = 300000
 correct = {'note_off',300000,0,60,101}
-ok(equals(opusevent, correct), 'alsa2opusevent() returns {"note_off",300000,0,60,101}')
+ok(equals(opusevent, correct),
+ 'alsa2opusevent() returns {"note_off",300000,0,60,101}')
 
 warn('# outputting a patch_change event...')
 correct = {11, 1, 0, 1, 0.5, {24,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
@@ -158,28 +166,87 @@ warn('# outputting a control_change event...')
 correct = {10, 1, 0, 1, 1.5, {24,0}, {id,1}, {2, 0, 0, 0,10,103} }
 rc =  ALSA.output(correct)
 bytes = assert(oup:read(3))
--- warn('# bytes = '..string.format('%d %d',string.byte(bytes),string.byte(bytes,2)))
 ok(equals(bytes, string.char(11*16+2,10,103)), 'control_change event detected')
 
 warn('# outputting a note_on event...')
 correct = { 6, 1, 0, 1, 2.0, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
 rc =  ALSA.output(correct)
 bytes = assert(oup:read(3))
---warn('# bytes = '..string.format('%d %d %d',string.byte(bytes),string.byte(bytes,2),string.byte(bytes,3)))
 ok(equals(bytes, string.char(9*16, 60,101)), 'note_on event detected')
 
 warn('# outputting a note_off event...')
 correct = { 7, 1, 0, 1, 2.5, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
 rc =  ALSA.output(correct)
 bytes = assert(oup:read(3))
---warn('# bytes = '..string.format('%d %d %d',string.byte(bytes),string.byte(bytes,2),string.byte(bytes,3)))
 ok(equals(bytes, string.char(8*16, 60,101)), 'note_off event detected')
 
 warn('# running  aconnect -d 24 '..id..':1 ...')
 os.execute('aconnect -d 24 '..id..':1')
 rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
-ok(alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED, 'SND_SEQ_EVENT_PORT_UNSUBSCRIBED event received')
+ok(alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
+ 'SND_SEQ_EVENT_PORT_UNSUBSCRIBED event received')
+
+rc = ALSA.disconnectto(2,25,0);
+ok(rc, "disconnectto(2,25,0)");
+
+rc = ALSA.connectto(2,id,1)
+ok(rc, "connectto(2,"..id..",1) connected to myself")
+correct = {11, 1, 0, 1, 2.5, {id,2}, {id,1}, {0, 0, 0, 0, 0, 99} }
+rc =  ALSA.output(correct)
+alsaevent  = ALSA.input()
+latency = math.floor(0.5 + 1000 * (alsaevent[5]-correct[5]))
+alsaevent[5] = correct[5]
+ok(equals(alsaevent, correct), "received an event from myself")
+ok(latency < 20, "latency was "..latency.." ms");
+
+rc =  ALSA.disconnectfrom(1,id,2)
+ok(rc, "disconnectfrom(1,"..id..",2)");
+
+alsaevent = ALSA.noteonevent(15, 72, 100, 2.7);
+opusevent = ALSA.alsa2opusevent(alsaevent);
+correct = {'note_on',0,15,72,100};
+ok(equals(opusevent, correct), 'noteonevent()');
+
+alsaevent = ALSA.noteoffevent(15, 72, 100, 2.7);
+opusevent = ALSA.alsa2opusevent(alsaevent);
+correct = {'note_off',0,15,72,100};
+ok(equals(opusevent, correct), 'noteoffevent()');
+
+alsaevent  = ALSA.noteevent(15, 72, 100, 2.7, 3.1);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+correct = {'note',2700,3100,15,72,100};
+ok(equals(scoreevent, correct), 'noteevent()');
+
+alsaevent = ALSA.pgmchangeevent(11, 98, 2.7);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+correct = {'patch_change',2700,11,98};
+ok(equals(scoreevent, correct), 'pgmchangeevent() with time>=0');
+
+alsaevent = ALSA.pgmchangeevent(11, 98);
+opusevent = ALSA.alsa2opusevent(alsaevent);
+correct = {'patch_change',0,11,98};
+ok(equals(opusevent, correct), 'pgmchangeevent() with time undefined');
+
+alsaevent = ALSA.pitchbendevent(11, 98, 2.7);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+correct = {'pitch_wheel_change',2700,11,98};
+ok(equals(scoreevent, correct), 'pitchbendevent() with time>=0');
+
+alsaevent = ALSA.pitchbendevent(11, 98);
+opusevent = ALSA.alsa2opusevent(alsaevent);
+correct = {'pitch_wheel_change',0,11,98};
+ok(equals(opusevent, correct), 'pitchbendevent() with time undefined');
+
+alsaevent = ALSA.chanpress(11, 98, 2.7);
+scoreevent = ALSA.alsa2scoreevent(alsaevent);
+correct = {'channel_after_touch',2700,11,98};
+ok(equals(scoreevent, correct), 'chanpress() with time>=0');
+
+alsaevent = ALSA.chanpress(11, 98);
+opusevent = ALSA.alsa2opusevent(alsaevent);
+correct = {'channel_after_touch',0,11,98};
+ok(equals(opusevent, correct), 'chanpress() with time undefined');
 
 rc = ALSA.stop()
 ok(rc,'stop() returns success')

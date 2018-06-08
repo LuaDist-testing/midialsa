@@ -1,20 +1,11 @@
 /*
-    midialsa.c - ALSA sequencer bindings for Python
+    C-midialsa.c - ALSA sequencer bindings for Lua
 
-    Copyright (c) 2007 Patricio Paez <pp@pp.com.mx>
+   This Lua5 module is Copyright (c) 2011, Peter J Billam
+                     www.pjb.com.au
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>
+ This module is free software; you can redistribute it and/or
+       modify it under the same terms as Lua5 itself.
 */
 
 #include <lua.h>
@@ -26,34 +17,7 @@ int queue_id = -1;
 int ninputports, noutputports, createqueue;
 int firstoutputport, lastoutputport;
 
-static int stackDump (lua_State *L) {
-	int i;
-	int top = lua_gettop(L);
-	for (i=1; i<=top; i++) {  /* repeat for each level */
-		int t = lua_type(L, i);
-		switch (t) {
-			case LUA_TSTRING: {
-				printf("'%s'", lua_tostring(L, i));
-				break;
-			}
-			case LUA_TBOOLEAN: {
-				printf(lua_toboolean(L, i) ? "true": "false");
-				break;
-			}
-			case LUA_TNUMBER: {
-				printf("%g", lua_tonumber(L, i));
-				break;
-			}
-			default: {
-				printf("%s", lua_typename(L, i));
-				break;
-			}
-		}
-		printf("  ");
-	}
-	printf("\n");
-}
-static int midialsa_client(lua_State *L) {
+static int c_client(lua_State *L) {
 	/* Lua stack: client_name, ninputports, noutputports, createqueue */
 	size_t len;
 	const char *client_name  = lua_tolstring(L, 1, &len);
@@ -109,21 +73,27 @@ static int midialsa_client(lua_State *L) {
 	return 1;
 }
 
-static int midialsa_start(lua_State *L) {
+static int c_start(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	int rc = snd_seq_start_queue(seq_handle, queue_id, NULL);
 	snd_seq_drain_output(seq_handle);
 	lua_pushboolean(L, rc);
 	return 1;
 }
 
-static int midialsa_stop(lua_State *L) {
+static int c_stop(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	int rc = snd_seq_stop_queue(seq_handle, queue_id, NULL);
 	snd_seq_drain_output(seq_handle);
 	lua_pushboolean(L, rc);
 	return 1;
 }
 
-static int midialsa_status(lua_State *L) {
+static int c_status(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	snd_seq_queue_status_t *queue_status;
 	int running, events;
 	const snd_seq_real_time_t *current_time;
@@ -135,20 +105,23 @@ static int midialsa_status(lua_State *L) {
 	snd_seq_queue_status_free( queue_status );
 	double sec   = current_time->tv_sec;
 	double nsec  = current_time->tv_nsec;
-	fprintf(stderr, "running=%d sec=%g nsec=%g\n", running, sec, nsec );
 	/* returns: running, time, events */
 	lua_pushboolean(L, running);
 	lua_pushnumber(L, sec + 1.0e-9*nsec);
 	lua_pushinteger(L, events);
-	/* stackDump(L); */
 	return 3;
 }
 
-static int midialsa_connectfrom(lua_State *L) {
+static int c_connectfrom(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	/* Lua stack: inputport, src_client, src_port */
 	lua_Integer myport     = lua_tointeger(L, 1);
 	lua_Integer src_client = lua_tointeger(L, 2);
 	lua_Integer src_port   = lua_tointeger(L, 3);
+	/* Modify dest port if out of bounds 1.01 */
+	/* printf ( "firstoutputport=%d\n", firstoutputport ); */
+    if (myport >= firstoutputport) myport = firstoutputport - 1;
 	int rc = snd_seq_connect_from( seq_handle, myport, src_client, src_port);
 	/* returns 0 on success, or a negative error code */
 	/* http://alsa-project.org/alsa-doc/alsa-lib/seq.html */
@@ -156,11 +129,16 @@ static int midialsa_connectfrom(lua_State *L) {
 	return 1;
 }
 
-static int midialsa_connectto(lua_State *L) {
+static int c_connectto(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	/* Lua stack: outputport, dest_client, dest_port */
 	lua_Integer myport      = lua_tointeger(L, 1);
 	lua_Integer dest_client = lua_tointeger(L, 2);
 	lua_Integer dest_port   = lua_tointeger(L, 3);
+	/* Modify source port if out of bounds 1.01 */
+    if ( myport < firstoutputport ) myport= firstoutputport;
+    else if ( myport > lastoutputport ) myport = lastoutputport;
 	int rc = snd_seq_connect_to( seq_handle, myport, dest_client, dest_port);
 	/* returns 0 on success, or a negative error code */
 	/* http://alsa-project.org/alsa-doc/alsa-lib/seq.html */
@@ -168,7 +146,43 @@ static int midialsa_connectto(lua_State *L) {
 	return 1;
 }
 
-static int midialsa_fd(lua_State *L) {
+static int c_disconnectfrom(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
+	/* Lua stack: inputport, src_client, src_port */
+	lua_Integer myport     = lua_tointeger(L, 1);
+	lua_Integer src_client = lua_tointeger(L, 2);
+	lua_Integer src_port   = lua_tointeger(L, 3);
+	/* Modify dest port if out of bounds 1.01 */
+	/* printf ( "firstoutputport=%d\n", firstoutputport ); */
+    if (myport >= firstoutputport) myport = firstoutputport - 1;
+	int rc = snd_seq_disconnect_from(seq_handle,myport,src_client,src_port);
+	/* returns 0 on success, or a negative error code ? */
+	/* http://alsa-project.org/alsa-doc/alsa-lib/seq.html */
+	lua_pushboolean(L, rc==0);
+	return 1;
+}
+
+static int c_disconnectto(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
+	/* Lua stack: outputport, dest_client, dest_port */
+	lua_Integer myport      = lua_tointeger(L, 1);
+	lua_Integer dest_client = lua_tointeger(L, 2);
+	lua_Integer dest_port   = lua_tointeger(L, 3);
+	/* Modify source port if out of bounds 1.01 */
+    if ( myport < firstoutputport ) myport= firstoutputport;
+    else if ( myport > lastoutputport ) myport = lastoutputport;
+	int rc = snd_seq_disconnect_to( seq_handle,myport,dest_client,dest_port);
+	/* returns 0 on success, or a negative error code ? */
+	/* http://alsa-project.org/alsa-doc/alsa-lib/seq.html */
+	lua_pushboolean(L, rc==0);
+	return 1;
+}
+
+static int c_fd(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	int npfd;
 	struct pollfd *pfd;
 	npfd = snd_seq_poll_descriptors_count(seq_handle, POLLIN);
@@ -178,12 +192,16 @@ static int midialsa_fd(lua_State *L) {
 	return 1;
 }
 
-static int midialsa_id(lua_State *L) {
+static int c_id(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	lua_pushinteger(L, snd_seq_client_id( seq_handle ));
 	return 1;
 }
 
-static int midialsa_input(lua_State *L) {
+static int c_input(lua_State *L) {
+	/* test if seq_handle exists, to avoid segfault */
+	if (seq_handle == NULL) { return(0); }
 	snd_seq_event_t *ev;
 	snd_seq_event_input( seq_handle, &ev );
 	/* returns: (type, flags, tag, queue, time, src_client, src_port,
@@ -237,13 +255,15 @@ static int midialsa_input(lua_State *L) {
 	}
 }
 
-static int midialsa_inputpending(lua_State *L) {
+static int c_inputpending(lua_State *L) {
+	if (seq_handle == NULL) { return(0); }
 	if (queue_id < 0) { lua_pushinteger(L,0) ; return 1; }
 	lua_pushinteger(L, snd_seq_event_input_pending(seq_handle, 1));
 	return 1;
 }
 
-static int midialsa_output(lua_State *L) {
+static int c_output(lua_State *L) {
+	if (seq_handle == NULL) { return(0); }
 	/* Lua stack: type, flags, tag, queue, time (float, in secs),
 	 src_client, src_port, dest_client, dest_port, data... */
 	snd_seq_event_t ev;
@@ -251,16 +271,15 @@ static int midialsa_output(lua_State *L) {
 	ev.flags         = lua_tointeger(L, 2);
 	ev.tag           = lua_tointeger(L, 3);
 	ev.queue         = lua_tointeger(L, 4);
-	double t         = lua_tonumber( L, 5); 
+	lua_Number t     = lua_tonumber( L, 5);  /* not just double! 1.01 */
 	ev.time.time.tv_sec       = (int) t;
 	ev.time.time.tv_nsec = (int) (1.0e9 * (t - (double) ev.time.time.tv_sec));
+	/* printf ( "c_output: t=%g\n", t); */
 	ev.source.client = lua_tointeger(L, 6);
 	ev.source.port   = lua_tointeger(L, 7);
 	ev.dest.client   = lua_tointeger(L, 8);
 	ev.dest.port     = lua_tointeger(L, 9);
 	static int * data;
-        
-	/* printf ( "event.type: %d source.client=%d dest.client=%d\n", ev.type, ev.source.client, ev.dest.client ); */
 	switch( ev.type ) {
 		case SND_SEQ_EVENT_NOTE:
 		case SND_SEQ_EVENT_NOTEON:
@@ -271,7 +290,6 @@ static int midialsa_output(lua_State *L) {
 			ev.data.note.velocity     = lua_tointeger(L, 12);
 			ev.data.note.off_velocity = lua_tointeger(L, 13);
 			ev.data.note.duration     = lua_tointeger(L, 14);
-			/* printf ( "note=%d velocity=%d\n", ev.data.note.note, ev.data.note.velocity ); */
 			break;
 
 		case SND_SEQ_EVENT_CONTROLLER:
@@ -284,9 +302,6 @@ static int midialsa_output(lua_State *L) {
 			ev.data.control.unused[2] = lua_tointeger(L, 13);
 			ev.data.control.param     = lua_tointeger(L, 14);
 			ev.data.control.value     = lua_tointeger(L, 15);
-			/* printf ( "param: %d\n", ev.data.control.param );
-			   printf ( "value: %d\n", ev.data.control.value );
-			*/
 			break;
 	}
 	/* If not a direct event, use the queue */
@@ -297,7 +312,6 @@ static int midialsa_output(lua_State *L) {
 		snd_seq_ev_set_source(&ev, firstoutputport );
 	else if ( ev.source.port > lastoutputport )
 		snd_seq_ev_set_source(&ev, lastoutputport );
-	/* printf ( "event.queue: %d source.port=%d dest.port=%d\n", ev.queue, ev.source.port, ev.dest.port ); */
 	/* Use subscribed ports, except if ECHO event */
 	if ( ev.type != SND_SEQ_EVENT_ECHO ) snd_seq_ev_set_subs(&ev);
 	int rc = snd_seq_event_output_direct( seq_handle, &ev );
@@ -305,7 +319,8 @@ static int midialsa_output(lua_State *L) {
 	return 1;
 }
 
-static int midialsa_syncoutput(lua_State *L) {
+static int c_syncoutput(lua_State *L) {
+	if (seq_handle == NULL) { return(0); }
 	snd_seq_sync_output_queue( seq_handle );
     return 0;
 }
@@ -380,18 +395,20 @@ static const struct constant constants[] = {
 };
 
 static const luaL_Reg prv[] = {  /* private functions */
-	{"client",          midialsa_client},
-	{"connectfrom",     midialsa_connectfrom},
-	{"connectto",       midialsa_connectto},
-	{"start",           midialsa_start},
-	{"status",          midialsa_status},
-	{"stop",            midialsa_stop},
-	{"fd",              midialsa_fd},
-	{"id",              midialsa_id},
-	{"input",           midialsa_input},
-	{"inputpending",    midialsa_inputpending},
-	{"output",          midialsa_output},
-	{"syncoutput",      midialsa_syncoutput},
+	{"client",          c_client},
+	{"connectfrom",     c_connectfrom},
+	{"connectto",       c_connectto},
+	{"disconnectfrom",  c_disconnectfrom},
+	{"disconnectto",    c_disconnectto},
+	{"start",           c_start},
+	{"status",          c_status},
+	{"stop",            c_stop},
+	{"fd",              c_fd},
+	{"id",              c_id},
+	{"input",           c_input},
+	{"inputpending",    c_inputpending},
+	{"output",          c_output},
+	{"syncoutput",      c_syncoutput},
 	{NULL, NULL}
 };
 
