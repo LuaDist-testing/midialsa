@@ -23,8 +23,8 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.15'
-M.VersionDate = '12dec2011'
+M.Version     = '1.16'
+M.VersionDate = '10oct2012'
 
 ------------------------------ private ------------------------------
 local function warn(str) io.stderr:write(str,'\n') end
@@ -161,6 +161,9 @@ function M.output(e)
     end
 
 end
+function M.queue_id()   -- 1.16
+	return prv.queue_id()
+end
 function M.start()
 	return prv.start()
 end
@@ -177,8 +180,9 @@ end
 ----------------- public functions from alsamidi.py  -----------------
 -- 1.15 the SND_SEQ_TIME_STAMP_REALs are now superfluous
 function M.noteevent( ch, key, vel, start, duration )
+	local qid = prv.queue_id()   -- 1.16
     return { M.SND_SEQ_EVENT_NOTE, M.SND_SEQ_TIME_STAMP_REAL,
-        0, 0, start, { 0,0 }, { 0,0 }, { ch, key, vel, vel, duration } }
+        0, qid, start, { 0,0 }, { 0,0 }, { ch, key, vel, vel, duration } }
 		-- { ch, key, vel, vel, math.floor(0.5 + 1000*duration) } } pre-1.15
 end
 
@@ -201,9 +205,9 @@ function M.pgmchangeevent( ch, value, start )
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
         { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } }
     else
+		local qid = prv.queue_id()   -- 1.16
         return { M.SND_SEQ_EVENT_PGMCHANGE, M.SND_SEQ_TIME_STAMP_REAL,
-        0, 0, start,
-        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } }
+        0, qid, start, { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } }
 	end
 end
 
@@ -214,9 +218,9 @@ function M.pitchbendevent( ch, value, start )
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
         { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
     else
+		local qid = prv.queue_id()   -- 1.16
         return { M.SND_SEQ_EVENT_PITCHBEND, M.SND_SEQ_TIME_STAMP_REAL,
-        0, 0, start,
-        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
+        0, qid, start, { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
 	end
 end
 function M.controllerevent( ch, key, value, start ) -- 1.05
@@ -226,9 +230,9 @@ function M.controllerevent( ch, key, value, start ) -- 1.05
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
         { 0,0 }, { 0,0 }, { ch, 0, 0, 0, key, value } }
     else
+		local qid = prv.queue_id()   -- 1.16
         return { M.SND_SEQ_EVENT_CONTROLLER, M.SND_SEQ_TIME_STAMP_REAL,
-        0, 0, start,
-        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, key, value } }
+        0, qid, start, { 0,0 }, { 0,0 }, { ch, 0, 0, 0, key, value } }
 	end
 end
 function M.chanpress( ch, value, start )
@@ -238,9 +242,9 @@ function M.chanpress( ch, value, start )
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
         { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
     else
+		local qid = prv.queue_id()   -- 1.16
         return { M.SND_SEQ_EVENT_CHANPRESS, M.SND_SEQ_TIME_STAMP_REAL,
-        0, 0, start,
-        { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
+        0, qid, start, { 0,0 }, { 0,0 }, { ch, 0, 0, 0, 0, value } } -- 1.01
 	end
 end
 function M.sysex( ch, value, start )
@@ -253,9 +257,9 @@ function M.sysex( ch, value, start )
         0, M.SND_SEQ_QUEUE_DIRECT, 0,
         { 0,0 }, { 0,0 }, {"\240"..value.."\247",} }
     else
+		local qid = prv.queue_id()   -- 1.16
         return { M.SND_SEQ_EVENT_SYSEX, M.SND_SEQ_TIME_STAMP_REAL,
-        0, 0, start,
-        { 0,0 }, { 0,0 }, {"\240"..value.."\247",} }
+        0, qid, start, { 0,0 }, { 0,0 }, {"\240"..value.."\247",} }
     end
 end
 
@@ -652,6 +656,7 @@ the byte-string, including any F0 and F7 bytes.
 For most other events,  the elements are
 { channel, unused,unused,unused, param, value }
 
+The I<channel> element is always 0..15
 
 =item I<inputpending>()
 
@@ -903,13 +908,14 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.15-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.16-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 CHANGES
 
+ 20121205 1.16 queue_id; test.lua prints better diagnostics; 5.2-compatible
  20111112 1.15 (dis)?connect(from|to) return nil if parse_address fails
  20111112 1.14 but output() does broadcast if destination is self
  20111108 1.12 output() does not broadcast if destination is set

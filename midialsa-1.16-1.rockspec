@@ -1,16 +1,16 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "midialsa"
-version = "1.15-1"
+version = "1.16-1"
 -- LuaDist source
 source = {
-  tag = "1.15-1",
+  tag = "1.16-1",
   url = "git://github.com/LuaDist-testing/midialsa.git"
 }
 -- Original source
 -- source = {
---    url = "http://www.pjb.com.au/comp/lua/midialsa-1.15.tar.gz",
---    md5 = "253ed308b3108c56e768ebae52dc809d"
+--    url = "http://www.pjb.com.au/comp/lua/midialsa-1.16.tar.gz",
+--    md5 = "30967f8386f5f69374d883caac3c660d"
 -- }
 description = {
    summary = "Provides access to the ALSA sequencer",
@@ -29,20 +29,30 @@ dependencies = {
 }
 external_dependencies = {
    ALSA = {
-      header  = "alsa/asoundlib.h",
-      library = "asound",
+      header = "alsa/asoundlib.h",
+      library = "asound"
    }
 }
 build = {
    type = "builtin",
    modules = {
-      ["midialsa"] = "midialsa.lua",
-      ["C-midialsa"] = {
-         sources   = { "C-midialsa.c" },
-         incdirs   = { "$(ALSA_INCDIR)" },
-         libdirs   = { "$(ALSA_LIBDIR)" },
-         libraries = { "asound" },
-      }
+      ['C-midialsa'] = {
+         incdirs = {
+            "$(ALSA_INCDIR)"
+         },
+         libdirs = {
+            "$(ALSA_LIBDIR)"
+         },
+         libraries = {
+            "asound"
+         },
+         sources = {
+            "C-midialsa.c"
+         }
+      },
+      midialsa = "midialsa.lua"
    },
-   copy_directories = { "doc", "test" }
+   copy_directories = {
+      "doc", "test"
+   }
 }

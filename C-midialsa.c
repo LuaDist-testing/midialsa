@@ -73,6 +73,12 @@ static int c_client(lua_State *L) {
 	return 1;
 }
 
+static int c_queue_id(lua_State *L) {
+	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
+	lua_pushinteger(L, queue_id);
+	return 1;
+}
+
 static int c_start(lua_State *L) {
 	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	int rc = snd_seq_start_queue(seq_handle, queue_id, NULL);
@@ -498,6 +504,7 @@ static const luaL_Reg prv[] = {  /* private functions */
 	{"listclients",     c_listclients},
 	{"listconnections", c_listconnections},
 	{"parse_address",   c_parse_address},
+	{"queue_id",        c_queue_id},
 	{"start",           c_start},
 	{"status",          c_status},
 	{"stop",            c_stop},
@@ -517,11 +524,17 @@ static int initialise(lua_State *L) {  /* Lua Programming Gems p. 335 */
 		lua_pushinteger(L, constants[index].value);
 		lua_setfield(L, 3, constants[index].name);
 	}
-	lua_pushvalue(L, 1); /* set the aux table as environment */
-	lua_replace(L, LUA_ENVIRONINDEX);
+	/* lua_pushvalue(L, 1);   * set the aux table as environment */
+	/* lua_replace(L, LUA_ENVIRONINDEX);
+	   unnecessary here, fortunately, because it fails in 5.2 */
 	lua_pushvalue(L, 2); /* register the private functions */
-	luaL_register(L, NULL, prv);
+#if LUA_VERSION_NUM >= 502
+	luaL_setfuncs(L, prv, 0);    /* 5.2 */
 	return 0;
+#else
+	luaL_register(L, NULL, prv); /* 5.1 */
+	return 0;
+#endif
 }
 
 int luaopen_midialsa(lua_State *L) {

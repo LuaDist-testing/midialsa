@@ -49,9 +49,14 @@ function ok(b,s)
         io.write('not ok '..i_test..' - '..s.."\n")
         Failed = Failed + 1
     end
+	return b
 end
 -------------------------------------------------------------
 ALSA = require 'midialsa'
+-- print("ALSA="..DataDumper(ALSA))
+-- for index, value in pairs(ALSA) do   --- 5.2
+-- 	print("index="..index.."  "..type(value))
+-- end
 
 function fwrite (fmt, ...)
 	return io.write(string.format(fmt, ...))
@@ -78,8 +83,10 @@ ok(rc, "client('"..my_name.."',2,2,1)")
 id = ALSA.id()
 ok(id > 0, 'id() returns '..id)
 
-cl,po = ALSA.parse_address('test_');
-ok(cl == id, "parse_address('test_') returns "..id..","..po);
+cl,po = ALSA.parse_address(my_name)
+if not ok(cl==id, "parse_address('"..my_name.."') returns "..id..","..po) then
+	print('# it returned instead: '..cl..','..po)
+end
 
 local vm  = 20  -- you may have to change this on your system...
 rc = ALSA.connectfrom(1,vm,0)
@@ -96,6 +103,12 @@ ok(not rc, 'connectto(1,133,0) correctly reported failure')
 
 rc = ALSA.start()
 ok(rc, 'start()')
+
+local qid = ALSA.queue_id()
+if not ok((qid >= 0 and qid ~= ALSA.SND_SEQ_QUEUE_DIRECT),
+  "queue_id is not negative and not SND_SEQ_QUEUE_DIRECT") then
+	print('# queue_id() returned '..qid)
+end
 
 fd = ALSA.fd()
 ok(fd > 0, 'fd()')

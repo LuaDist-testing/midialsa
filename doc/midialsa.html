@@ -73,8 +73,18 @@ and Sean Burke's MIDI-Perl CPAN module.</p>
 This module is in turn translated also into a
 call-compatible Perl CPAN module:
 <I><A HREF="http://search.cpan.org/perldoc?MIDI::ALSA">MIDI::ALSA</A></I>
-</p>
-<p>
+</p><p>
+As from version 1.15,
+<A HREF="#input">note durations are in seconds</A>
+rather than milliseconds, for consistency with the timestamps.
+This introduces a backward incompatibility which only affects you
+if are putting together your own alsaevents without using
+<A HREF="#noteevent">the noteevent() function</A>.
+In the worst case you have to detect versions:<PRE>
+ if tonumber(ALSA.Version) &lt; 1.145 then
+    alsaevent[8][5] = 1000*alsaevent[8][5]
+ end
+</PRE></p><p>
 </p>
 <hr />
 <h3><a name="functions">FUNCTIONS</a></h3>
@@ -248,6 +258,8 @@ For SYSEX, the data array has just one element:
 the byte-string, including any F0 and F7 bytes.<BR>
 For most other events,  the elements are
 <CODE>{&nbsp;channel,&nbsp;unused,unused,unused,&nbsp;param,&nbsp;value&nbsp;}</CODE>
+</p><p>
+The <I>channel</I> element is always 0..15
 </p>
 </dd>
 
@@ -612,13 +624,15 @@ so you should be able to install it with the command:</p>
  # luarocks install midialsa</pre>
 <p>or:</p>
 <pre>
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.14-0.rockspec</a></pre>
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.16-0.rockspec</a></pre>
 <p>
 </p>
 
 <hr />
 <h3><a name="changes">CHANGES</a></h3>
 <p>
+<BR>20121206 1.16 queue_id; test prints better diagnostics; 5.2-compatible
+<BR>20120930 1.15 output() timestamp and duration in floating-point seconds
 <BR>20111112 1.14 but output() does broadcast if destination is self
 <BR>20111108 1.12 output() does not broadcast if destination is set
 <BR>20111101 1.11
