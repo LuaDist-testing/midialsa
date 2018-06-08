@@ -66,7 +66,8 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
 It translates into Lua the Python modules
 <em>alsaseq.py</em> and <em>alsamidi.py</em> by Patricio Paez;
 it also offers some functions to translate events from and to
-the format used in Peter Billam's MIDI.lua Lua module
+the format used in Peter Billam's
+<A HREF="MIDI.html">MIDI.lua Lua module</A>
 and Sean Burke's MIDI-Perl CPAN module.</p>
 <p>
 This module is in turn translated also into a
@@ -228,19 +229,25 @@ The last three elements are also arrays:</p>
 <p>The <em>source</em> and <em>destination</em> arrays may be useful within an application
 for handling events differently according to their source or destination.
 <A HREF="#constants">The event-type constants, beginning with SND_SEQ_,
-are available as module variables</A></p>
-<p>Note that if the event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
-then the remote client and port do not seem to get set; you need to use
+are available as module variables</A>.
+</p><p>
+Note that if the event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
+then that message has come from the System,
+so its <I>src_client</I> and <I>src_port</I> do not tell you who disconnected.
+You'll need to use
 <A HREF="#listconnected">listconnected()</A> to see what's happened.</p>
-<p>The data array mostly as documented in
+<p>The data array is mostly as documented in
 <a href="http://alsa-project.org/alsa-doc/alsa-lib/seq.html">
 http://alsa-project.org/alsa-doc/alsa-lib/seq.html</a><BR>
 For NOTE events,  the elements are
-{&nbsp;channel,&nbsp;pitch,&nbsp;velocity,&nbsp;unused,&nbsp;duration }<BR>
+<CODE>{&nbsp;channel,&nbsp;pitch,&nbsp;velocity,&nbsp;unused,&nbsp;duration&nbsp;}
+</CODE><BR>
+where the <I>duration</I> is in floating-point seconds (unlike in
+the <I>alsaseq.py</I> Python module where it is in milliseconds).<BR>
 For SYSEX, the data array has just one element:
 the byte-string, including any F0 and F7 bytes.<BR>
 For most other events,  the elements are
-{&nbsp;channel,&nbsp;unused,unused,unused,&nbsp;param,&nbsp;value&nbsp;}
+<CODE>{&nbsp;channel,&nbsp;unused,unused,unused,&nbsp;param,&nbsp;value&nbsp;}</CODE>
 </p>
 </dd>
 
@@ -304,7 +311,11 @@ If the queue buffer is full, <a href="#output"><code>output()</code></a>
 will wait until space is available to output the event.
 Use <a href="#status"><code>status()</code></a>
 to know how many events are scheduled in the queue.</p>
-</dd>
+</p><p>
+If no <A HREF="#start">queue has been started</A>, a SND_SEQ_EVENT_NOTE
+event can only emerge as a SND_SEQ_EVENT_NOTEON, since a queue
+is necessary in order to schedule the corresponding NOTEOFF.
+</p></dd>
 
 <dt><strong><a name="start" class="item"><em>start</em>()</a></strong></dt>
 <dd>
@@ -628,14 +639,6 @@ so you should be able to install it with the command:</p>
 Perhaps there should be a general <code>connect_between()</code> mechanism,
 allowing the interconnection of two other clients,
 a bit like <em>aconnect 32 20</em>
-</p><p>
-If an event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
-then the remote client and port are zeroed-out,
-which makes it hard to know which client has just disconnected.
-You have to consult &nbsp;
-<CODE><A HREF="#listconnectedto">listconnectedto()</A></CODE>
-and
-<CODE><A HREF="#listconnectedfrom">listconnectedfrom()</A></CODE>
 </p><p>
 ALSA does not transmit Meta-Events like <I>text_event</I>,
 and there's not much can be done about that.

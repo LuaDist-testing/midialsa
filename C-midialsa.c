@@ -115,7 +115,7 @@ static int c_parse_address(lua_State *L) {
     addr = alloca(sizeof(snd_seq_addr_t));
     int rc = snd_seq_parse_address(seq_handle, addr, port_name);
     if (rc < 0) {
-        fprintf(stderr, "Invalid port %s - %s\n", port_name, snd_strerror(rc));
+        /* fprintf(stderr, "Invalid port %s - %s\n", port_name, snd_strerror(rc)); */
         return(0);
     }
     lua_pushinteger(L, addr->client);
@@ -280,11 +280,11 @@ static int c_output(lua_State *L) {
 	 src_client, src_port, dest_client, dest_port, data... */
 	snd_seq_event_t ev;
 	ev.type          = lua_tointeger(L, 1);
-	ev.flags         = lua_tointeger(L, 2);
+	ev.flags         = lua_tointeger(L, 2) | SND_SEQ_TIME_STAMP_REAL; /*1.15*/
 	ev.tag           = lua_tointeger(L, 3);
 	ev.queue         = lua_tointeger(L, 4);
 	lua_Number t     = lua_tonumber( L, 5);  /* not just double! 1.01 */
-	ev.time.time.tv_sec       = (int) t;
+	ev.time.time.tv_sec  = (int) t;
 	ev.time.time.tv_nsec = (int) (1.0e9 * (t - (double) ev.time.time.tv_sec));
 	/* printf ( "c_output: t=%g\n", t); */
 	ev.source.client = lua_tointeger(L, 6);

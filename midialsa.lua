@@ -23,8 +23,8 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.14'
-M.VersionDate = '12nov2011'
+M.Version     = '1.15'
+M.VersionDate = '12dec2011'
 
 ------------------------------ private ------------------------------
 local function warn(str) io.stderr:write(str,'\n') end
@@ -77,24 +77,28 @@ end
 function M.connectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
 		src_client,src_port = prv.parse_address(src_client)
+		if src_client == nil then return nil end  -- 1.15
 	end
 	return prv.connectfrom( inputport, src_client, src_port )
 end
 function M.connectto( outputport, dest_client, dest_port )
 	if type(dest_client) == 'string' and not dest_port then
 		dest_client,dest_port = prv.parse_address(dest_client)
+		if dest_client == nil then return nil end  -- 1.15
 	end
 	return prv.connectto( outputport, dest_client, dest_port )
 end
 function M.disconnectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
 		src_client,src_port = prv.parse_address(src_client)
+		if src_client == nil then return nil end  -- 1.15
 	end
 	return prv.disconnectfrom( inputport, src_client, src_port )
 end
 function M.disconnectto( outputport, dest_client, dest_port )
 	if type(dest_client) == 'string' and not dest_port then
 		dest_client,dest_port = prv.parse_address(dest_client)
+		if dest_client == nil then return nil end  -- 1.15
 	end
 	return prv.disconnectto( outputport, dest_client, dest_port )
 end
@@ -130,6 +134,7 @@ end
 function M.output(e)
 	if e == nil then return end
 	local ev   = deepcopy(e)
+	-- ev[2] = ev[2] | M.SND_SEQ_TIME_STAMP_REAL  -- lua has no binary-or!
 	local data = table.remove(ev)
 	local src  = ev[6]
 	local dest = ev[7]
@@ -143,6 +148,12 @@ function M.output(e)
 		return prv.output(ev[1], ev[2], ev[3], ev[4], ev[5],
 		  src[1],src[2], dest[1],dest[2],
           string.len(s),1,2,3,4,5,s)
+	elseif ev[1] == M.SND_SEQ_EVENT_NOTE then   -- 1.15 duration in FP secs
+		return prv.output(ev[1], ev[2], ev[3], ev[4], ev[5],
+		  src[1],src[2], dest[1],dest[2],
+		  data[1],data[2],data[3],data[4],
+		  math.floor(0.5 + 1000*data[5]), data[6])
+		  -- the argument is an int, so we convert here, not in C-midialsa.c
     else
 		return prv.output(ev[1], ev[2], ev[3], ev[4], ev[5],
 		  src[1],src[2], dest[1],dest[2],
@@ -164,10 +175,11 @@ function M.syncoutput()
 end
 
 ----------------- public functions from alsamidi.py  -----------------
+-- 1.15 the SND_SEQ_TIME_STAMP_REALs are now superfluous
 function M.noteevent( ch, key, vel, start, duration )
     return { M.SND_SEQ_EVENT_NOTE, M.SND_SEQ_TIME_STAMP_REAL,
-        0, 0, start, { 0,0 }, { 0,0 },
-		{ ch, key, vel, vel, math.floor(0.5 + 1000*duration) } }
+        0, 0, start, { 0,0 }, { 0,0 }, { ch, key, vel, vel, duration } }
+		-- { ch, key, vel, vel, math.floor(0.5 + 1000*duration) } } pre-1.15
 end
 
 function M.noteonevent( ch, key, vel )
@@ -263,7 +275,8 @@ function M.alsa2scoreevent(alsaevent)
 	local data = alsaevent[8]  -- deepcopy?
 	-- snd_seq_ev_note_t: channel, note, velocity, off_velocity, duration
 	if alsaevent[1] == M.SND_SEQ_EVENT_NOTE then
-		return { 'note',ticks,data[5],data[1],data[2],data[3] } -- 1.01
+		return { 'note',ticks, math.floor(0.5 + 1000*data[5]),
+		  data[1],data[2],data[3] } -- 1.01, 1.15
 	elseif alsaevent[1] == M.SND_SEQ_EVENT_NOTEOFF
 	 or (alsaevent[1] == M.SND_SEQ_EVENT_NOTEON and data[3] == 0) then
 		local cha = data[1]
@@ -324,7 +337,7 @@ function M.scoreevent2alsa(event)
 		-- note on and off with duration; event data type = snd_seq_ev_note_t
 		return { M.SND_SEQ_EVENT_NOTE, M.SND_SEQ_TIME_STAMP_REAL,
 		 0, 0, time_in_secs, { 0,0 }, { 0,0 },
-		 { event[4], event[5], event[6], 0, event[3] } }
+		 { event[4], event[5], event[6], 0, 0.001*event[3] } } -- 1.15
 	elseif event[1] == 'control_change' then
 		-- controller; snd_seq_ev_ctrl_t; channel, unused[3], param, value
 		return { M.SND_SEQ_EVENT_CONTROLLER, M.SND_SEQ_TIME_STAMP_REAL,
@@ -491,6 +504,16 @@ This module is in turn translated also into a
 call-compatible Perl CPAN module:
 I<MIDI::ALSA> http://search.cpan.org/~pjb
 
+As from version 1.15, note durations are in seconds rather
+than milliseconds, for consistency with the timestamps.
+This introduces a backward incompatibility which only affects
+you if are putting together your own alsaevents without using the
+noteevent() function.  In the worst case you have to detect versions:
+
+ if tonumber(ALSA.Version) < 1.145 then
+    alsaevent[8][5] = 1000*alsaevent[8][5]
+ end
+
 =head1 FUNCTIONS
 
 Functions based on those in I<alsaseq.py>:
@@ -622,6 +645,8 @@ The data array is mostly as documented in
 http://alsa-project.org/alsa-doc/alsa-lib/seq.html.
 For NOTE events,  the elements are
 { channel, pitch, velocity, unused, duration };
+where since version 1.15 the I<duration> is in floating-point seconds
+(unlike in the I<alsaseq.py> Python module where it is in milliseconds).
 For SYSEX events, the data array contains just one element:
 the byte-string, including any F0 and F7 bytes.
 For most other events,  the elements are
@@ -878,13 +903,14 @@ so you should be able to install it with the command:
 
 or:
 
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.14-0.rockspec
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.15-0.rockspec
 
 The Perl version is available from CPAN at
 http://search.cpan.org/perldoc?MIDI::ALSA
 
 =head1 CHANGES
 
+ 20111112 1.15 (dis)?connect(from|to) return nil if parse_address fails
  20111112 1.14 but output() does broadcast if destination is self
  20111108 1.12 output() does not broadcast if destination is set
  20111101 1.11 add parse_address() & call automatically from connectto() etc

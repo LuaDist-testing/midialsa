@@ -58,7 +58,7 @@ function fwrite (fmt, ...)
 end
 
 warn('# This test script is not very portable: it depends')
-warn('# on virmidi ports on 24:0 and 25:0, for example...')
+warn('# on virmidi ports on 20:0 and 21:0, for example...')
 
 rc = ALSA.inputpending()
 ok(not rc, "inputpending() with no client returned "..tostring(rc))
@@ -81,14 +81,15 @@ ok(id > 0, 'id() returns '..id)
 cl,po = ALSA.parse_address('test_');
 ok(cl == id, "parse_address('test_') returns "..id..","..po);
 
-rc = ALSA.connectfrom(1,24,0)
-ok(rc, 'connectfrom(1,24,0)')
+local vm  = 20  -- you may have to change this on your system...
+rc = ALSA.connectfrom(1,vm,0)
+ok(rc, 'connectfrom(1,'..vm..',0)')
 
 rc = ALSA.connectfrom(1,133,0)
 ok(not rc, 'connectfrom(1,133,0) correctly reported failure')
 
-rc = ALSA.connectto(2,25,0)
-ok(rc, 'connectto(2,25,0)')
+rc = ALSA.connectto(2,21,0)
+ok(rc, 'connectto(2,21,0)')
 
 rc = ALSA.connectto(1,133,0)
 ok(not rc, 'connectto(1,133,0) correctly reported failure')
@@ -105,8 +106,8 @@ ok(num2name[id] == my_name, "listclients()");
 num2nports = ALSA.listnumports();
 ok(num2nports[id] == 4, "listnumports()");
 
-local inp = assert(io.open('/dev/snd/midiC2D0','wb'))  -- client 24
-local oup = assert(io.open('/dev/snd/midiC2D1','rb'))  -- client 25
+local inp = assert(io.open('/dev/snd/midiC1D0','wb'))  -- client 20
+local oup = assert(io.open('/dev/snd/midiC1D1','rb'))  -- client 21
 
 warn('# feeding ourselves a patch_change event...')
 assert(inp:write(string.char(12*16, 99))) -- {'patch_change',0,0,99}
@@ -114,13 +115,13 @@ assert(inp:flush())
 rc =  ALSA.inputpending()
 ok(rc > 0, 'inputpending() returns '..rc)
 local alsaevent  = ALSA.input()
-correct = {11, 1, 0, 1, 300, {24,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
+correct = {11, 1, 0, 1, 300, {vm,0}, {id,1}, {0, 0, 0, 0, 0, 99} }
 alsaevent[4] = 1
 alsaevent[5] = 300
 -- print("alsaevent="..DataDumper(alsaevent));
 -- print("correct="..DataDumper(correct));
 ok(equals(alsaevent, correct),
- 'input() returns {11,1,0,1,300,{24,0},{id,1},{0,0,0,0,0,99}}')
+ 'input() returns {11,1,0,1,300,{vm,0},{id,1},{0,0,0,0,0,99}}')
 local e = ALSA.alsa2scoreevent(alsaevent)
 correct = {'patch_change',300000,0,99}
 ok(equals(e, correct),
@@ -131,10 +132,10 @@ assert(inp:write(string.char(11*16+2,10,103))) -- {'control_change',3,2,10,103}
 assert(inp:flush())
 rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
-correct = {10, 1, 0, 1, 300, {24,0}, {id,1}, {2, 0, 0, 0,10,103} }
+correct = {10, 1, 0, 1, 300, {vm,0}, {id,1}, {2, 0, 0, 0,10,103} }
 alsaevent[5] = 300
 ok(equals(alsaevent, correct),
- 'input() returns {10,1,0,1,300,{24,0},{id,1},{2,0,0,0,10,103}}')
+ 'input() returns {10,1,0,1,300,{vm,0},{id,1},{2,0,0,0,10,103}}')
 local e = ALSA.alsa2scoreevent(alsaevent)
 correct = {'control_change',300000,2,10,103}
 ok(equals(e, correct),
@@ -145,11 +146,11 @@ assert(inp:write(string.char(9*16, 60,101))) -- {'note_on',0,60,101}
 assert(inp:flush())
 local alsaevent  = ALSA.input()
 local save_time = alsaevent[5]
-correct = { 6, 1, 0, 1, 300, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
+correct = { 6, 1, 0, 1, 300, { vm, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
 alsaevent[5] = 300
 alsaevent[8][5] = 0
 ok(equals(alsaevent, correct),
- 'input() returns {6,1,0,1,300,{24,0},{id,1},{0,60,101,0,0}}')
+ 'input() returns {6,1,0,1,300,{vm,0},{id,1},{0,60,101,0,0}}')
 local scoreevent = ALSA.alsa2scoreevent(alsaevent)
 
 warn('# feeding ourselves a note_off event...')
@@ -158,11 +159,11 @@ assert(inp:flush())
 rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
 local save_time = alsaevent[5]
-correct = { 7, 1, 0, 1, 301, { 24, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
+correct = { 7, 1, 0, 1, 301, { vm, 0 }, { id, 1 }, { 0, 60, 101, 0, 0 } }
 alsaevent[5] = 301
 alsaevent[8][5] = 0
 ok(equals(alsaevent, correct),
- 'input() returns {7,1,0,1,301,{24,0},{id,1},{0,60,101,0,0}}')
+ 'input() returns {7,1,0,1,301,{vm,0},{id,1},{0,60,101,0,0}}')
 scoreevent = ALSA.alsa2scoreevent(alsaevent)
 print("scoreevent="..DataDumper(scoreevent))
 scoreevent[2] = 300000
@@ -175,12 +176,12 @@ assert(inp:write("\240}hello world\247"))
 assert(inp:flush())
 alsaevent  = ALSA.input();
 save_time = alsaevent[5];
-correct = {130, 5, 0, 1, 300, {24,0}, {id,1},
+correct = {130, 5, 0, 1, 300, {vm,0}, {id,1},
      {"\240}hello world\247",nil,nil,nil,0} }
 alsaevent[5] = 300;
 alsaevent[8][5] = 0;
 ok(equals(alsaevent, correct),
- 'input() returns {130,5,0,1,300,{24,0},{id,1},{"\\240}hello world\\247"}}');
+ 'input() returns {130,5,0,1,300,{vm,0},{id,1},{"\\240}hello world\\247"}}');
 scoreevent = ALSA.alsa2scoreevent(alsaevent);
 scoreevent[2] = 300000;
 correct = {'sysex_f0',300000,"}hello world\247"}
@@ -188,49 +189,49 @@ ok(equals(scoreevent, correct),
  'alsa2scoreevent() returns {"sysex_f0",300000,"}hello world\\247"}');
 
 to = ALSA.listconnectedto()
-correct = {{2,25,0},}
+correct = {{2,21,0},}
 --print('to='..DataDumper(to))
-ok(equals(to, correct), "listconnectedto() returns {{2,25,0}}")
+ok(equals(to, correct), "listconnectedto() returns {{2,21,0}}")
 from = ALSA.listconnectedfrom()
-correct = {{1,24,0},}
+correct = {{1,vm,0},}
 --print('from='..DataDumper(from))
-ok(equals(from, correct), "listconnectedfrom() returns {{1,24,0}}")
+ok(equals(from, correct), "listconnectedfrom() returns {{1,vm,0}}")
 
 
 warn('# outputting a patch_change event...')
-alsaevent = {11, 1, 0, 1, 0.5, {id,1}, {25,0}, {0, 0, 0, 0, 0, 99} }
+alsaevent = {11, 1, 0, 1, 0.5, {id,1}, {21,0}, {0, 0, 0, 0, 0, 99} }
 rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(2))
 -- warn('# bytes = '..string.format('%d %d',string.byte(bytes),string.byte(bytes,2)))
 ok(equals(bytes, string.char(12*16, 99)), 'patch_change event detected')
 
 warn('# outputting a control_change event...')
-alsaevent = {10, 1, 0, 1, 1.5, {id,1}, {25,0}, {2, 0, 0, 0,10,103} }
+alsaevent = {10, 1, 0, 1, 1.5, {id,1}, {21,0}, {2, 0, 0, 0,10,103} }
 rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(3))
 ok(equals(bytes, string.char(11*16+2,10,103)), 'control_change event detected')
 
 warn('# outputting a note_on event...')
-alsaevent = { 6, 1, 0, 1, 2.0, {id,1}, {25,0}, { 0, 60, 101, 0, 0 } }
+alsaevent = { 6, 1, 0, 1, 2.0, {id,1}, {21,0}, { 0, 60, 101, 0, 0 } }
 rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(3))
 ok(equals(bytes, string.char(9*16, 60,101)), 'note_on event detected')
 
 warn('# outputting a note_off event...')
-alsaevent = { 7, 1, 0, 1, 2.5, {id,1}, {25,0}, { 0, 60, 101, 0, 0 } }
+alsaevent = { 7, 1, 0, 1, 2.5, {id,1}, {21,0}, { 0, 60, 101, 0, 0 } }
 rc =  ALSA.output(alsaevent)
 bytes = assert(oup:read(3))
 ok(equals(bytes, string.char(8*16, 60,101)), 'note_off event detected')
 
-warn('# running  aconnect -d 24 '..id..':1 ...')
-os.execute('aconnect -d 24 '..id..':1')
+warn('# running  aconnect -d '..vm..' '..id..':1 ...')
+os.execute('aconnect -d '..vm..' '..id..':1')
 rc =  ALSA.inputpending()
 local alsaevent  = ALSA.input()
 ok(alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
  'SND_SEQ_EVENT_PORT_UNSUBSCRIBED event received')
 
-rc = ALSA.disconnectto(2,25,0)
-ok(rc, "disconnectto(2,25,0)")
+rc = ALSA.disconnectto(2,21,0)
+ok(rc, "disconnectto(2,21,0)")
 
 rc = ALSA.connectto(2, my_name..":1")
 ok(rc, "connectto(2,'"..my_name..":1') connected to myself by name")
