@@ -63,13 +63,23 @@ warn('# on virmidi ports on 24:0 and 25:0, for example...')
 rc = ALSA.inputpending()
 ok(not rc, "inputpending() with no client returned "..tostring(rc))
 
-rc = ALSA.client('test_a.lua',2,2,1)
-ok(rc, "client('test_a.lua',2,2,1)")
+cl,po = ALSA.parse_address('97:3');
+ok((cl==97) and (po==3), "parse_address('97:3') with no client returned 97,3");
+
+local my_name='test_a_lua'
+rc = ALSA.client(my_name,2,2,1)
+ok(rc, "client('"..my_name.."',2,2,1)")
 
 -- my ($seconds, $microseconds) = Time::HiRes::gettimeofday;
 -- my $start_time = $seconds + 1.0E-6 * $microseconds;
 -- No builtin sub-second time; could usedate +%s.%N
 -- As a cheapo, use 2.5
+
+id = ALSA.id()
+ok(id > 0, 'id() returns '..id)
+
+cl,po = ALSA.parse_address('test_');
+ok(cl == id, "parse_address('test_') returns "..id..","..po);
 
 rc = ALSA.connectfrom(1,24,0)
 ok(rc, 'connectfrom(1,24,0)')
@@ -89,11 +99,8 @@ ok(rc, 'start()')
 fd = ALSA.fd()
 ok(fd > 0, 'fd()')
 
-id = ALSA.id()
-ok(id > 0, 'id() returns '..id)
-
 num2name = ALSA.listclients();
-ok(num2name[id] == 'test_a.lua', "listclients()");
+ok(num2name[id] == my_name, "listclients()");
 
 num2nports = ALSA.listnumports();
 ok(num2nports[id] == 4, "listnumports()");
@@ -225,11 +232,15 @@ ok(alsaevent[1] == ALSA.SND_SEQ_EVENT_PORT_UNSUBSCRIBED,
 rc = ALSA.disconnectto(2,25,0)
 ok(rc, "disconnectto(2,25,0)")
 
-rc = ALSA.connectto(2,id,1)
-ok(rc, "connectto(2,"..id..",1) connected to myself")
+rc = ALSA.connectto(2, my_name..":1")
+ok(rc, "connectto(2,'"..my_name..":1') connected to myself by name")
+
 correct = {11, 1, 0, 1, 2.5, {id,2}, {id,1}, {0, 0, 0, 0, 0, 99} }
 rc =  ALSA.output(correct)
 alsaevent  = ALSA.input()
+-- print("alsaevent="..DataDumper(alsaevent));
+-- print("correct="..DataDumper(correct));
+
 latency = math.floor(0.5 + 1000 * (alsaevent[5]-correct[5]))
 alsaevent[5] = correct[5]
 ok(equals(alsaevent, correct), "received an event from myself")

@@ -107,6 +107,22 @@ static int c_status(lua_State *L) {
 	return 3;
 }
 
+static int c_parse_address(lua_State *L) {
+	/* 1.11 */
+	size_t len;
+	const char *port_name  = lua_tolstring(L, 1, &len);
+	snd_seq_addr_t *addr;
+    addr = alloca(sizeof(snd_seq_addr_t));
+    int rc = snd_seq_parse_address(seq_handle, addr, port_name);
+    if (rc < 0) {
+        fprintf(stderr, "Invalid port %s - %s\n", port_name, snd_strerror(rc));
+        return(0);
+    }
+    lua_pushinteger(L, addr->client);
+    lua_pushinteger(L, addr->port);
+	return 2;
+}
+
 static int c_connectfrom(lua_State *L) {
 	if (seq_handle == NULL) { return(0); }  /* avoid segfaults */
 	/* Lua stack: inputport, src_client, src_port */
@@ -479,6 +495,7 @@ static const luaL_Reg prv[] = {  /* private functions */
 	{"disconnectto",    c_disconnectto},
 	{"listclients",     c_listclients},
 	{"listconnections", c_listconnections},
+	{"parse_address",   c_parse_address},
 	{"start",           c_start},
 	{"status",          c_status},
 	{"stop",            c_stop},

@@ -23,8 +23,9 @@
 -- end
 
 local M = {} -- public interface
-M.Version     = '1.09'
-M.VersionDate = '24jun2011'
+M.Version     = '1.11'
+M.VersionDate = '01nov2011'
+-- 20111101 1.11 add parse_address() & call automatically from connectto() etc
 -- 20110624 1.09 maximum_nports increased from 4 to 64
 -- 20110428 1.06 fix bug in status() in the time return-value
 -- 20110323 1.05 controllerevent() 
@@ -79,43 +80,31 @@ function M.client(name, ninputports, noutputports, createqueue)
 	end
 	return prv.client(name, ninputports, noutputports, createqueue)
 end
+function M.parse_address( port_name )  -- 1.11
+	-- http://alsa-project.org/alsa-doc/alsa-lib/group___seq_middle.html
+	return prv.parse_address( port_name )
+end
 function M.connectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
-		local c,p = string.match(src_client, '^(%d+):(%d+)$')
-		if c and p then
-			src_client = c
-			src_port   = p
-		end
+		src_client,src_port = prv.parse_address(src_client)
 	end
 	return prv.connectfrom( inputport, src_client, src_port )
 end
 function M.connectto( outputport, dest_client, dest_port )
 	if type(dest_client) == 'string' and not dest_port then
-		local c,p = string.match(dest_client, '^(%d+):(%d+)$')
-		if c and p then
-			dest_client = c
-			dest_port   = p
-		end
+		dest_client,dest_port = prv.parse_address(dest_client)
 	end
 	return prv.connectto( outputport, dest_client, dest_port )
 end
 function M.disconnectfrom( inputport, src_client, src_port )
 	if type(src_client) == 'string' and not src_port then
-		local c,p = string.match(src_client, '^(%d+):(%d+)$')
-		if c and p then
-			src_client = c
-			src_port   = p
-		end
+		src_client,src_port = prv.parse_address(src_client)
 	end
 	return prv.disconnectfrom( inputport, src_client, src_port )
 end
 function M.disconnectto( outputport, dest_client, dest_port )
 	if type(dest_client) == 'string' and not dest_port then
-		local c,p = string.match(dest_client, '^(%d+):(%d+)$')
-		if c and p then
-			dest_client = c
-			dest_port   = p
-		end
+		dest_client,dest_port = prv.parse_address(dest_client)
 	end
 	return prv.disconnectto( outputport, dest_client, dest_port )
 end
@@ -466,15 +455,17 @@ function M.listconnectedfrom()
 end
 
 -- make M readOnly, very classy...
-local readonly_proxy = {}
-local mt = { -- create metatable, see Programming in Lua p.127
-	__index = M,
-	__newindex = function (M,k,v)
-		warn('midialsa: attempt to update the module table')
-	end
-}
-setmetatable(readonly_proxy, mt)
-return readonly_proxy
+-- BUT it backfires;  for k,v in pairs(ALSA) do print(k) end  fails :-(
+-- local readonly_proxy = {}
+-- local mt = { -- create metatable, see Programming in Lua p.127
+-- 	__index = M,
+-- 	__newindex = function (M,k,v)
+-- 		warn('midialsa: attempt to update the module table')
+-- 	end
+-- }
+-- setmetatable(readonly_proxy, mt)
+-- return readonly_proxy
+return M  -- 20111028
 
 --[=[
 
@@ -524,7 +515,8 @@ Functions to interface with I<MIDI.lua>:
 alsa2scoreevent(), scoreevent2alsa()
 
 Functions to get the current ALSA status:
-listclients(), listnumports(), listconnectedto(), listconnectedfrom()
+listclients(), listnumports(), listconnectedto(), listconnectedfrom(),
+parse_address()
 
 =over 3
 
@@ -535,6 +527,10 @@ ports, and optionally a timing queue.  ninputports and noutputports
 are created if the quantity requested is between 1 and 64 for each.
 If createqueue = true, it creates a queue for stamping the arrival time
 of incoming events and scheduling future start times of outgoing events.
+
+For full ALSA functionality, the I<name>
+should contain only letters, digits, underscores or spaces,
+and should contain at least one letter.
 
 Unlike in the I<alsaseq.py> Python module, it returns success or failure.
 
@@ -547,6 +543,13 @@ Events from each client can be distinguised by their source field.
 
 Unlike in the I<alsaseq.py> Python module, it returns success or failure.
 
+Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+if I<src_client> is a string and I<src_port> is undefined,
+then I<parse_address(src_client)> automatically gets invoked.
+This allows you to refer to the clients by name, for example
+connectfrom(inputport,'Virtual:1') will connect from
+port 1 of the 'Virtual Raw MIDI' client.
+
 =item I<connectto>( outputport, dest_client, dest_port )
 
 Connect outputport to dest_client:dest_port. Each outputport can be
@@ -556,17 +559,39 @@ it using this function.
 
 Unlike in the I<alsaseq.py> Python module, it returns success or failure.
 
+Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+if I<dest_client> is a string and I<dest_port> is undefined,
+then I<parse_address(dest_client)> automatically gets invoked.
+This allows you to refer to the clients by name, for example
+connectto(outputport,'Virtual:1') will connect to
+port 1 of the 'Virtual Raw MIDI' client.
+
+
 =item I<disconnectfrom>( inputport, src_client, src_port )
 
 Disconnect the connection
 from the remote I<src_client:src_port> to my I<inputport>.
 Returns success or failure.
 
+Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+if I<src_client> is a string and I<src_port> is undefined,
+then I<parse_address(src_client)> automatically gets invoked.
+This allows you to refer to the clients by name, for example
+disconnectfrom(inputport,'Virtual:1') will disconnect from
+port 1 of the 'Virtual Raw MIDI' client.
+
 =item I<disconnectto>( outputport, dest_client, dest_port )
 
 Disconnect the connection
 from my I<outputport> to the remote I<dest_client:dest_port>.
 Returns success or failure.
+
+Since version 1.11, and unlike in the I<alsaseq.py> Python module,
+if I<dest_client> is a string and I<dest_port> is undefined,
+then I<parse_address(dest_client)> automatically gets invoked.
+This allows you to refer to the clients by name, for example
+disconnectto(outputport,'Virtual:1') will disconnect to
+port 1 of the 'Virtual Raw MIDI' client.
 
 =item I<fd>()
 
@@ -784,7 +809,57 @@ Returns an array of three-element arrays
 with the same data as might have been passed to connectfrom(),
 or which could be passed to disconnectfrom().
 
+=item parse_address( client_name )
+
+Given a string, this function returns a two-integer array
+( client_number, port_number )
+as might be needed by I<connectto>() or I<connectfrom>().
+For example, even if I<client>() has not been called,
+"24" will return 24,0 and "25:1" will return 25,1
+
+If the local client is running, then parse_address() 
+also looks up names. For example, if C<aconnect -oil>
+reveals a I<timidity> client:
+
+ client 128: 'TiMidity' [type=user]
+
+then parse_address("TiM") will return 128,0
+and parse_address("TiMi:1") will return 128,1
+because it finds the first client with a start-of-string
+case-sensitive match to the given name.
+parse_address() is called automatically by I<connectto>(),
+I<connectfrom>(), I<disconnectto>() and I<disconnectfrom>()
+if they are called with the second argument a string 
+and the third argument undefined.
+parse_address() was introduced in version 1.11 and is not present in
+the alsaseq.py Python module.
+
 =back
+
+=head1 CONSTANTS
+
+SND_SEQ_EVENT_BOUNCE    SND_SEQ_EVENT_CHANPRESS   SND_SEQ_EVENT_CLIENT_CHANGE
+SND_SEQ_EVENT_CLIENT_EXIT SND_SEQ_EVENT_CLIENT_START SND_SEQ_EVENT_CLOCK
+SND_SEQ_EVENT_CONTINUE  SND_SEQ_EVENT_CONTROL14   SND_SEQ_EVENT_CONTROLLER
+SND_SEQ_EVENT_ECHO      SND_SEQ_EVENT_KEYPRESS    SND_SEQ_EVENT_KEYSIGN
+SND_SEQ_EVENT_NONE      SND_SEQ_EVENT_NONREGPARAM SND_SEQ_EVENT_NOTE
+SND_SEQ_EVENT_NOTEOFF   SND_SEQ_EVENT_NOTEON      SND_SEQ_EVENT_OSS
+SND_SEQ_EVENT_PGMCHANGE SND_SEQ_EVENT_PITCHBEND   SND_SEQ_EVENT_PORT_CHANGE
+SND_SEQ_EVENT_PORT_EXIT SND_SEQ_EVENT_PORT_START  SND_SEQ_EVENT_PORT_SUBSCRIBED
+SND_SEQ_EVENT_PORT_UNSUBSCRIBED SND_SEQ_EVENT_QFRAME SND_SEQ_EVENT_QUEUE_SKEW
+SND_SEQ_EVENT_REGPARAM  SND_SEQ_EVENT_RESET       SND_SEQ_EVENT_RESULT
+SND_SEQ_EVENT_SENSING   SND_SEQ_EVENT_SETPOS_TICK SND_SEQ_EVENT_SETPOS_TIME
+SND_SEQ_EVENT_SONGPOS   SND_SEQ_EVENT_SONGSEL     SND_SEQ_EVENT_START
+SND_SEQ_EVENT_STOP      SND_SEQ_EVENT_SYNC_POS    SND_SEQ_EVENT_SYSEX
+SND_SEQ_EVENT_SYSTEM    SND_SEQ_EVENT_TEMPO       SND_SEQ_EVENT_TICK
+SND_SEQ_EVENT_TIMESIGN  SND_SEQ_EVENT_TUNE_REQUEST SND_SEQ_EVENT_USR0
+SND_SEQ_EVENT_USR1      SND_SEQ_EVENT_USR2        SND_SEQ_EVENT_USR3
+SND_SEQ_EVENT_USR4      SND_SEQ_EVENT_USR5        SND_SEQ_EVENT_USR6
+SND_SEQ_EVENT_USR7      SND_SEQ_EVENT_USR8        SND_SEQ_EVENT_USR9
+SND_SEQ_EVENT_USR_VAR0  SND_SEQ_EVENT_USR_VAR1    SND_SEQ_EVENT_USR_VAR2
+SND_SEQ_EVENT_USR_VAR3  SND_SEQ_EVENT_USR_VAR4    SND_SEQ_QUEUE_DIRECT
+SND_SEQ_TIME_STAMP_REAL
+
 
 =head1 DOWNLOAD
 

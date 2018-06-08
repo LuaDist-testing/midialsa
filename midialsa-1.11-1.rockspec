@@ -1,16 +1,16 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "midialsa"
-version = "1.09-1"
+version = "1.11-1"
 -- LuaDist source
 source = {
-  tag = "1.09-1",
+  tag = "1.11-1",
   url = "git://github.com/LuaDist-testing/midialsa.git"
 }
 -- Original source
 -- source = {
---    url = "http://www.pjb.com.au/comp/lua/midialsa-1.09.tar.gz",
---    md5 = "3840491e727a2c2b9710452832b6fb4c"
+--    url = "http://www.pjb.com.au/comp/lua/midialsa-1.11.tar.gz",
+--    md5 = "d0c14eeb22573e6d356f6d64b7633f21"
 -- }
 description = {
    summary = "Provides access to the ALSA sequencer",

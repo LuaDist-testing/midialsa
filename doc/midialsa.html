@@ -21,11 +21,15 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
 	<li><a href="#name">NAME</a></li>
 	<li><a href="#synopsis">SYNOPSIS</a></li>
 	<li><a href="#description">DESCRIPTION</a></li>
-	<li><a href="#functions">FUNCTIONS</a></li>
 </ul>
 </TD><TD ALIGN="left">
 <ul>
+	<li><a href="#functions">FUNCTIONS</a></li>
+	<li><a href="#constants">CONSTANTS</a></li>
 	<li><a href="#download">DOWNLOAD</a></li>
+</ul>
+</TD><TD ALIGN="left">
+<ul>
 	<li><a href="#to_do">TO DO</a></li>
 	<li><a href="#author">AUTHOR</a></li>
 	<li><a href="#see_also">SEE ALSO</a></li>
@@ -38,12 +42,12 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
 </div>
 <!-- INDEX END -->
 
-<h2><a name="name">NAME</a></h2>
+<h3><a name="name">NAME</a></h3>
 <p>midialsa.lua - the ALSA library, plus some interface functions</p>
 <p>
 </p>
 <hr />
-<h2><a name="synopsis">SYNOPSIS</a></h2>
+<h3><a name="synopsis">SYNOPSIS</a></h3>
 <pre>
  local ALSA = require 'midialsa'
  ALSA.client( 'Lua client', 1, 1, false )
@@ -57,7 +61,7 @@ CONTENT="MIDI, ALSA, Lua, module, luarock, score, opus">
 <p>
 </p>
 <hr />
-<h2><a name="description">DESCRIPTION</a></h2>
+<h3><a name="description">DESCRIPTION</a></h3>
 <p>This module offers a Lua interface to the <em>ALSA</em> library.
 It translates into Lua the Python modules
 <em>alsaseq.py</em> and <em>alsamidi.py</em> by Patricio Paez;
@@ -72,7 +76,7 @@ call-compatible Perl CPAN module:
 <p>
 </p>
 <hr />
-<h2><a name="functions">FUNCTIONS</a></h2>
+<h3><a name="functions">FUNCTIONS</a></h3>
 <p>Functions based on those in <em>alsaseq.py</em>:
 <a href="#client"><B>client()</B></a>,
 <a href="#connectfrom"><B>connectfrom()</B></a>,
@@ -94,6 +98,7 @@ call-compatible Perl CPAN module:
 <a href="#noteoffevent"><B>noteoffevent()</B></a>,
 <a href="#pgmchangeevent"><B>pgmchangeevent()</B></a>,
 <a href="#pitchbendevent"><B>pitchbendevent()</B></a>,
+<a href="#controllerevent"><B>controllerevent()</B></a>,
 <a href="#chanpress"><B>chanpress()</B></a> and
 <a href="#sysex"><B>sysex()</B></a></p>
 <p>Functions to interface with <em><A HREF="MIDI.html">MIDI.lua</A></em>:
@@ -102,8 +107,10 @@ call-compatible Perl CPAN module:
 <p>Functions to to get the current ALSA status:
 <a href="#listclients"><B>listclients()</B></A>,
 <a href="#listnumports"><B>listnumports()</B></A>,
-<a href="#listconnectedto"><B>listconnectedto()</B></A> and
-<a href="#listconnectedfrom"><B>listconnectedfrom()</B></A></p>
+<a href="#listconnectedto"><B>listconnectedto()</B></A>,
+<a href="#listconnectedfrom"><B>listconnectedfrom()</B></A> and
+<a href="#parse_address"><B>parse_address()</B></A>
+</p>
 <dl>
 
 <dt><strong><a name="client" class="item">
@@ -111,9 +118,12 @@ call-compatible Perl CPAN module:
 <dd>
 <p>Create an ALSA sequencer client with zero or more input or output ports,
 and optionally a timing queue.  ninputports and noutputports are created
-if the quantity requested is between 1 and 4 for each.
+if the quantity requested is between 1 and 64 for each.
 If createqueue = true, it creates a queue for stamping the arrival time of
 incoming events and scheduling future start times of outgoing events.<BR>
+For full ALSA functionality, the <I>name</I>
+should contain only letters, digits, underscores or spaces,
+and should contain at least one letter.<BR>
 Unlike in the <em>alsaseq.py</em> Python module,
 it returns success or failure.</p>
 </dd>
@@ -127,7 +137,16 @@ The <a href="#input"><code>input()</code></a> function will receive events
 from any intput port and any of the clients connected to each of them.
 Events from each client can be distinguished by their source field.<BR>
 Unlike in the <em>alsaseq.py</em> Python module,
-it returns success or failure.</p>
+it returns success or failure.<BR>
+Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+if <I>src_client</I> is a string and <I>src_port</I> is undefined,
+then
+<I><A HREF="#parse_address">parse_address(src_client)</A></I>
+automatically gets invoked.
+This allows you to refer to the clients by name, for example
+<I>connectfrom(inputport,'Virtual:1')</I> will connect from
+port 1 of the 'Virtual Raw MIDI' client.
+</p>
 </dd>
 
 <dt><strong><a name="connectto" class="item">
@@ -139,7 +158,16 @@ Events sent to an output port using the
 <a href="#output"><code>output()</code></a>  funtion will be sent
 to all clients that are connected to it using this function.<BR>
 Unlike in the <em>alsaseq.py</em> Python module,
-it returns success or failure.</p>
+it returns success or failure.<BR>
+Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+if <I>dest_client</I> is a string and <I>dest_port</I> is undefined,
+then
+<I><A HREF="#parse_address">parse_address(dest_client)</A></I>
+automatically gets invoked.
+This allows you to refer to the clients by name, for example
+<I>connectto(outputport,'Virtual:1')</I> will connect to
+port 1 of the 'Virtual Raw MIDI' client.
+</p>
 </dd>
 
 <dt><strong><a name="disconnectfrom" class="item">
@@ -147,7 +175,15 @@ it returns success or failure.</p>
 <dd>
 <p>Disconnect the connection
 from the remote <I>src_client:src_port</I> to my <I>inputport</I>.
-<BR>Returns success or failure.</p>
+<BR>Returns success or failure.<BR>
+Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+if <I>src_client</I> is a string and <I>src_port</I> is undefined,
+then
+<I><A HREF="#parse_address">parse_address(src_client)</A></I>
+automatically gets invoked.
+This allows you to refer to the clients by name, for example
+<I>disconnectfrom(inputport,'Virtual:1')</I> will disconnect from
+port 1 of the 'Virtual Raw MIDI' client.</p>
 </dd>
 
 <dt><strong><a name="disconnectto" class="item">
@@ -155,7 +191,15 @@ from the remote <I>src_client:src_port</I> to my <I>inputport</I>.
 <dd>
 <p>Disconnect the connection
 from my <I>outputport</I> to the remote <I>dest_client:dest_port</I>.
-<BR>Returns success or failure.</p>
+<BR>Returns success or failure.<BR>
+Since version 1.11, and unlike in the <I>alsaseq.py</I> Python module,
+if <I>dest_client</I> is a string and <I>dest_port</I> is undefined,
+then
+<I><A HREF="#parse_address">parse_address(dest_client)</A></I>
+automatically gets invoked.
+This allows you to refer to the clients by name, for example
+<I>disconnectto(outputport,'Virtual:1')</I> will disconnect to
+port 1 of the 'Virtual Raw MIDI' client.</p>
 </dd>
 
 <dt><strong><a name="fd" class="item"><em>fd</em>()</a></strong></dt>
@@ -183,11 +227,8 @@ The last three elements are also arrays:</p>
  data = { varies depending on type }</pre>
 <p>The <em>source</em> and <em>destination</em> arrays may be useful within an application
 for handling events differently according to their source or destination.
-The event-type constants, beginning with SND_SEQ_,
-are available as module variables:</p>
-<pre>
- ALSA = require 'midialsa'
- for k,v in pairs(ALSA) do print(k) end</pre>
+<A HREF="#constants">The event-type constants, beginning with SND_SEQ_,
+are available as module variables</A></p>
 <p>Note that if the event is of type SND_SEQ_EVENT_PORT_UNSUBSCRIBED
 then the remote client and port do not seem to get set; you need to use
 <A HREF="#listconnected">listconnected()</A> to see what's happened.</p>
@@ -309,6 +350,16 @@ Unlike in the <em>alsaseq.py</em> Python module,
 the <em>start</em> element, when provided, is in floating-point seconds.</p>
 </dd>
 
+<dt><strong><a name="controllerevent" class="item">
+<em>controllerevent</em>( ch, controllernum, value, start )</a></strong></dt>
+<dd>
+<p>Returns an ALSA-event-array to be sent by <a href="#output"><code>output()</code></a>.
+If <em>start</em> is not used, the event will be sent directly;
+if <em>start</em> is provided, the event will be scheduled in a queue. 
+Unlike in the <em>alsaseq.py</em> Python module,
+the <em>start</em> element, when provided, is in floating-point seconds.</p>
+</dd>
+
 <dt><strong><a name="chanpress" class="item">
 <em>chanpress</em>( ch, value, start )</a></strong></dt>
 <dd>
@@ -407,12 +458,113 @@ or which could be passed to
 <CODE><A HREF="#disconnectfrom">disconnectfrom()</A></CODE>.
 </p></dd>
 
+<dt><strong><a name="parse_address" class="item">
+<em>parse_address</em>( client_name )</a></strong></dt>
+<dd><p>
+Given a string, this function returns a two-integer array
+( client_number, port_number )
+as might be needed by
+<CODE><A HREF="#connectto">connectto()</A></CODE>
+or
+<CODE><A HREF="#connectfrom">connectfrom()</A></CODE>.
+For example, even if
+<CODE><A HREF="#client">client()</A></CODE>
+has not been called,
+"24" will return 24,0 and "25:1" will return 25,1
+</p><p>
+If the local client is running, then <I>parse_address</I>() 
+also looks up names. For example, if <CODE>aconnect&nbsp;-oil</CODE>
+reveals a <I>timidity</I> client:<BR>
+
+&nbsp; &nbsp; <CODE>client 128: 'TiMidity' [type=user]</CODE><BR>
+then <CODE>parse_address("TiM")</CODE> will return 128,0
+and <CODE>parse_address("TiMi:1")</CODE> will return 128,1
+because it finds the first client with a start-of-string
+case-sensitive match to the given name.<BR>
+<I>parse_address</I>() is called automatically by
+<CODE><A HREF="#connectto">connectto()</A></CODE>,
+<CODE><A HREF="#connectfrom">connectfrom()</A></CODE>,
+<CODE><A HREF="#disconnectto">disconnectto()</A></CODE>
+and
+<CODE><A HREF="#disconnectfrom">disconnectfrom()</A></CODE>
+if they are called with the second argument a string
+and the third argument undefined.<BR>
+<I>parse_address</I>() was introduced in version 1.11
+and is not present in the <I>alsaseq.py</I> Python module.
+</p></dd>
+
 </dl>
 
-<p>
-</p>
 <hr />
-<h2><a name="download">DOWNLOAD</a></h2>
+<h3><a name="constants">CONSTANTS</a></h3>
+<P>
+SND_SEQ_EVENT_BOUNCE
+&nbsp; &nbsp; SND_SEQ_EVENT_CHANPRESS
+&nbsp; &nbsp; SND_SEQ_EVENT_CLIENT_CHANGE
+&nbsp; &nbsp; SND_SEQ_EVENT_CLIENT_EXIT
+&nbsp; &nbsp; SND_SEQ_EVENT_CLIENT_START
+&nbsp; &nbsp; SND_SEQ_EVENT_CLOCK
+&nbsp; &nbsp; SND_SEQ_EVENT_CONTINUE
+&nbsp; &nbsp; SND_SEQ_EVENT_CONTROL14
+&nbsp; &nbsp; SND_SEQ_EVENT_CONTROLLER
+&nbsp; &nbsp; SND_SEQ_EVENT_ECHO
+&nbsp; &nbsp; SND_SEQ_EVENT_KEYPRESS
+&nbsp; &nbsp; SND_SEQ_EVENT_KEYSIGN
+&nbsp; &nbsp; SND_SEQ_EVENT_NONE
+&nbsp; &nbsp; SND_SEQ_EVENT_NONREGPARAM
+&nbsp; &nbsp; SND_SEQ_EVENT_NOTE
+&nbsp; &nbsp; SND_SEQ_EVENT_NOTEOFF
+&nbsp; &nbsp; SND_SEQ_EVENT_NOTEON
+&nbsp; &nbsp; SND_SEQ_EVENT_OSS
+&nbsp; &nbsp; SND_SEQ_EVENT_PGMCHANGE
+&nbsp; &nbsp; SND_SEQ_EVENT_PITCHBEND
+&nbsp; &nbsp; SND_SEQ_EVENT_PORT_CHANGE
+&nbsp; &nbsp; SND_SEQ_EVENT_PORT_EXIT
+&nbsp; &nbsp; SND_SEQ_EVENT_PORT_START
+&nbsp; &nbsp; SND_SEQ_EVENT_PORT_SUBSCRIBED
+&nbsp; &nbsp; SND_SEQ_EVENT_PORT_UNSUBSCRIBED
+&nbsp; &nbsp; SND_SEQ_EVENT_QFRAME
+&nbsp; &nbsp; SND_SEQ_EVENT_QUEUE_SKEW
+&nbsp; &nbsp; SND_SEQ_EVENT_REGPARAM
+&nbsp; &nbsp; SND_SEQ_EVENT_RESET
+&nbsp; &nbsp; SND_SEQ_EVENT_RESULT
+&nbsp; &nbsp; SND_SEQ_EVENT_SENSING
+&nbsp; &nbsp; SND_SEQ_EVENT_SETPOS_TICK
+&nbsp; &nbsp; SND_SEQ_EVENT_SETPOS_TIME
+&nbsp; &nbsp; SND_SEQ_EVENT_SONGPOS
+&nbsp; &nbsp; SND_SEQ_EVENT_SONGSEL
+&nbsp; &nbsp; SND_SEQ_EVENT_START
+&nbsp; &nbsp; SND_SEQ_EVENT_STOP
+&nbsp; &nbsp; SND_SEQ_EVENT_SYNC_POS
+&nbsp; &nbsp; SND_SEQ_EVENT_SYSEX
+&nbsp; &nbsp; SND_SEQ_EVENT_SYSTEM
+&nbsp; &nbsp; SND_SEQ_EVENT_TEMPO
+&nbsp; &nbsp; SND_SEQ_EVENT_TICK
+&nbsp; &nbsp; SND_SEQ_EVENT_TIMESIGN
+&nbsp; &nbsp; SND_SEQ_EVENT_TUNE_REQUEST
+&nbsp; &nbsp; SND_SEQ_EVENT_USR0
+&nbsp; &nbsp; SND_SEQ_EVENT_USR1
+&nbsp; &nbsp; SND_SEQ_EVENT_USR2
+&nbsp; &nbsp; SND_SEQ_EVENT_USR3
+&nbsp; &nbsp; SND_SEQ_EVENT_USR4
+&nbsp; &nbsp; SND_SEQ_EVENT_USR5
+&nbsp; &nbsp; SND_SEQ_EVENT_USR6
+&nbsp; &nbsp; SND_SEQ_EVENT_USR7
+&nbsp; &nbsp; SND_SEQ_EVENT_USR8
+&nbsp; &nbsp; SND_SEQ_EVENT_USR9
+&nbsp; &nbsp; SND_SEQ_EVENT_USR_VAR0
+&nbsp; &nbsp; SND_SEQ_EVENT_USR_VAR1
+&nbsp; &nbsp; SND_SEQ_EVENT_USR_VAR2
+&nbsp; &nbsp; SND_SEQ_EVENT_USR_VAR3
+&nbsp; &nbsp; SND_SEQ_EVENT_USR_VAR4
+&nbsp; &nbsp; SND_SEQ_QUEUE_DIRECT
+&nbsp; &nbsp; SND_SEQ_TIME_STAMP_REAL
+&nbsp; &nbsp; Version
+&nbsp; &nbsp; VersionDate
+</P>
+
+<hr />
+<h3><a name="download">DOWNLOAD</a></h3>
 <p>This module is available as a LuaRock in
 <a href="http://luarocks.org/repositories/rocks/index.html#midi">http://luarocks.org/repositories/rocks/index.html</a>
 so you should be able to install it with the command:</p>
@@ -422,11 +574,11 @@ so you should be able to install it with the command:</p>
  # luarocks install midialsa</pre>
 <p>or:</p>
 <pre>
- # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.04-0.rockspec</a></pre>
+ # luarocks install http://www.pjb.com.au/comp/lua/midialsa-1.09-0.rockspec</a></pre>
 <p>
 </p>
 <hr />
-<h2><a name="to_do">TO DO</a></h2>
+<h3><a name="to_do">TO DO</a></h3>
 <p>
 Perhaps there should be a general <code>connect_between()</code> mechanism,
 allowing the interconnection of two other clients,
@@ -445,12 +597,12 @@ and there's not much can be done about that.
 <p>
 </p>
 <hr />
-<h2><a name="author">AUTHOR</a></h2>
+<h3><a name="author">AUTHOR</a></h3>
 <p>Peter J Billam, <a href="http://www.pjb.com.au/comp/contact.html">http://www.pjb.com.au/comp/contact.html</a></p>
 <p>
 </p>
 <hr />
-<h2><a name="see_also">SEE ALSO</a></h2>
+<h3><a name="see_also">SEE ALSO</a></h3>
 <pre>
  aconnect -oil
  <a href="http://pp.com.mx/python/alsaseq">http://pp.com.mx/python/alsaseq</a>
