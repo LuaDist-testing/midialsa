@@ -330,10 +330,10 @@ static int c_output(lua_State *L) {
 		snd_seq_ev_set_source(&ev, firstoutputport );
 	else if ( ev.source.port > lastoutputport )
 		snd_seq_ev_set_source(&ev, lastoutputport );
-	/* Use subscribed ports, except if ECHO event */
-	/* if ( ev.type != SND_SEQ_EVENT_ECHO ) snd_seq_ev_set_subs(&ev); */
 	/* Use subscribed ports, except if ECHO event, or dest_client>0 1.12 */
-	if (ev.type!=SND_SEQ_EVENT_ECHO && !ev.dest.client) snd_seq_ev_set_subs(&ev);
+	if (ev.type!=SND_SEQ_EVENT_ECHO && ( !ev.dest.client
+	  || ev.dest.client == snd_seq_client_id( seq_handle)))  /* 1.14 */
+		snd_seq_ev_set_subs(&ev);
 	int rc = snd_seq_event_output_direct( seq_handle, &ev );
 	lua_pushinteger(L, rc);
 	return 1;
