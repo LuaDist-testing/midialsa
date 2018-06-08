@@ -976,12 +976,12 @@ in the output of C<aconnect -oil>
 =head1 DOWNLOAD
 
 This module is available as a LuaRock in
-http://rocks.moonscript.org/modules/peterbillam
+http://luarocks.org/modules/peterbillam
 so you should be able to install it with the command:
 
  $ su
  Password:
- # luarocks install --server=http://rocks.moonscript.org midialsa
+ # luarocks install midialsa
 
 or:
 
@@ -1036,7 +1036,7 @@ Peter J Billam, http://www.pjb.com.au/comp/contact.html
  http://pp.com.mx/python/alsaseq
  http://search.cpan.org/perldoc?MIDI::ALSA
  http://www.pjb.com.au/comp/lua/midialsa.html
- http://luarocks.org/repositories/rocks/index.html#midialsa
+ http://luarocks.org/modules/peterbillam/midialsa
  http://www.pjb.com.au/comp/lua/MIDI.html
  http://www.pjb.com.au/comp/lua/MIDI.html#events
  http://alsa-project.org/alsa-doc/alsa-lib/seq.html
